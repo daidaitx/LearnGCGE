@@ -1,11 +1,13 @@
 /**
+ * @file ops_orth.c
+ * 
  * Chinese Encoding Format: UTF-8
  * 
  * Updated on 2025-03-07 by 吴卓轩
  * 
- * 本代码实现了一个用于矩阵正交化的库，主要包含了两种正交化方法：
- * 1. 分块的改进GS正交化：Modified Gram-Schmidt (MGS)
- * 2. EVD-二分递归正交化：Binary Gram-Schmidt (BGS)
+ * @brief 本代码实现了一个用于矩阵正交化的库，主要包含了两种正交化方法：
+ * 			1. 分块的改进GS正交化：Modified Gram-Schmidt (MGS)
+ * 			2. EVD-二分递归正交化：Binary Gram-Schmidt (BGS)
 */
 
 /**
@@ -13,6 +15,7 @@
  * @param MultiVecQtAP
  * @param MultiVecAxpby
  * @param MultiVecLinearComb
+ * 其默认实现在 ops_multi_vec.c 中。
  */
 
 #include	<stdio.h>
@@ -23,29 +26,6 @@
 #include    <time.h>
 
 #include    "ops_orth.h"
-
-#define  DEBUG 0
-#define  TIME_MGS 0
-#define  TIME_BGS 0
-
-typedef struct TimeMGS_ {
-	double axpby_time;
-	double line_comb_time;
-	double orth_self_time;
-    double qAp_time;
-	double time_total;
-} TimeMGS;
-
-typedef struct TimeBGS_ {
-	double axpby_time;
-	double line_comb_time;
-	double orth_self_time;
-    double qAp_time;
-	double time_total;
-} TimeBGS;
-
-struct TimeMGS_ time_mgs = {0.0,0.0,0.0,0.0,0.0};
-struct TimeBGS_ time_bgs = {0.0,0.0,0.0,0.0,0.0};
 
 /**
  * @brief 这是一个核心子函数，使用 Modified Gram-Schmidt 正交化小块矩阵
@@ -174,9 +154,7 @@ static void OrthSelf(void **x, int start_x, int *end_x, void *B, int max_reorth,
 				ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);			
 				// 计算coef的绝对最大值是否小于重正交容差reorth_tol，如果足够小，则退出重正交化。
 				idx_abs_max = idamax(&length,coef,&inc);
-				if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
-				   break;
-				}
+				if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
 			}			
 		}
 	}
@@ -235,18 +213,12 @@ static void OrthSelfEVP(void **x, int start_x, int *end_x, void *B, int max_reor
 		for (k = 0; k < N; ++k) {
 			assert(W[k] > -orth_zero_tol); // 确保特征值非负
 			// 如果特征值为正，则计算其开方倒数（^-0.5）
-			if (fabs(W[k]) > orth_zero_tol) {
-				W[k] = 1.0/sqrt(W[k]);
-			}
+			if (fabs(W[k]) > orth_zero_tol) W[k] = 1.0/sqrt(W[k]);
 			// 如果特征值为0，则在lin_dep上记录一次
-			else {
-				++lin_dep;
-			}
+			else ++lin_dep;
 		}
 		// 若存在线性相关向量，输出线性相关向量的数量信息
-		if (lin_dep > 0) {
-			ops->Printf("There has %d linear dependent vec\n",lin_dep);
-		}
+		if (lin_dep > 0) ops->Printf("There has %d linear dependent vec\n",lin_dep);
 
 		// 由于特征值是升序排列的，故零特征值及其对应的特征向量应在最前方。
 		// 剔除零特征值的特征向量：计算 mv_ws = x * A(:, lin_dep:end)
@@ -263,13 +235,10 @@ static void OrthSelfEVP(void **x, int start_x, int *end_x, void *B, int max_reor
 		start[1] = start_x  ; end[1] = *end_x;
 		ops->MultiVecAxpby(1.0,mv_ws,0.0,x,start,end,ops);
 		// 如果不再有线性相关项，且特征值之和足够接近N（理论上W应为全一向量），则停止重正交化。
-		if (lin_dep==0&&fabs(dasum(&N,W,&inc)-N)<reorth_tol) {
-			break;
-		}	
+		if (lin_dep==0&&fabs(dasum(&N,W,&inc)-N)<reorth_tol) break;	
 	}
 	return;
 }
-
 
 /**
  * @brief 这是一个主函数，使用分块 Modified Gram-Schmidt 方法正交化大矩阵
@@ -325,9 +294,7 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 			ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);
 			// 计算coef的绝对最大值是否小于重正交容差reorth_tol，如果足够小，则退出重正交化。
 			idx_abs_max = idamax(&length,coef,&incx);
-			if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
-			   break;
-			}
+			if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
 		}
 	}
 	
@@ -397,9 +364,7 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 				// 计算 coef 的绝对最大值是否小于重正交容差 reorth_tol ，如果足够小，则退出重正交化。
 				incx = 1;
 				idx_abs_max = idamax(&length,coef,&incx);
-				if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
-				   break;
-				}
+				if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
 			}
 		}
 		// 更新 init_* 指标，准备下一次循环
@@ -409,152 +374,166 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 	return;
 }
 
-void MultiVecOrthSetup_ModifiedGramSchmidt(
-		int block_size, int max_reorth, double orth_zero_tol, 
-		void **mv_ws, double *dbl_ws, struct OPS_ *ops)
+/**
+ * @brief 这是一个初始化函数，用于设置 Modified Gram-Schmidt 方法的参数
+ * 
+ * 设置 Modified Gram-Schmidt 方法的参数，包括 block_size, max_reorth, orth_zero_tol, reorth_tol
+ * 以及工作空间指针。
+ * 
+ * @param block_size 	分块大小
+ * @param max_reorth 	最大重正交化次数
+ * @param orth_zero_tol 零向量容差
+ * @param mv_ws 		多向量工作空间
+ * @param dbl_ws 		双精度工作空间
+ * @param ops 			包含各种操作函数的实现
+ */
+void MultiVecOrthSetup_ModifiedGramSchmidt(int block_size, int max_reorth, double orth_zero_tol, void **mv_ws, double *dbl_ws, struct OPS_ *ops)
 {
 	static ModifiedGramSchmidtOrth mgs_orth_static = {
-		.block_size = -1  , .orth_zero_tol = 20*DBL_EPSILON,
+		.block_size = -1  , .orth_zero_tol = 20*DBL_EPSILON, // 这里 DBL_EPSILON 是双精度浮点数的最小值（机器精度）
 		.max_reorth = 3   , .reorth_tol    = 50*DBL_EPSILON,
 		.mv_ws      = NULL, .dbl_ws        = NULL};
+	/**
+	 * @todo 这里的默认值有意义吗？用户输入的参数不是一定会覆盖这里的默认值吗？
+	 */
 	mgs_orth_static.block_size    = block_size   ;
 	mgs_orth_static.orth_zero_tol = orth_zero_tol;
 	mgs_orth_static.max_reorth    = max_reorth;
 	mgs_orth_static.mv_ws         = mv_ws ;
 	mgs_orth_static.dbl_ws        = dbl_ws;
 	ops->orth_workspace = (void *)&mgs_orth_static;
-	ops->MultiVecOrth = ModifiedGramSchmidt;
+	ops->MultiVecOrth = ModifiedGramSchmidt; // 设置正交化函数为 ModifiedGramSchmidt
 	return;
 }
 
-
-static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self_method,
-	int block_size, int max_reorth, double orth_zero_tol, double reorth_tol,
-	void **mv_ws, double *dbl_ws, struct OPS_ *ops)
+/**
+ * @brief 这是一个递归函数，使用 二分递归方法 正交化大矩阵
+ * 
+ * 对一组向量进行规范正交化处理，确保它们彼此正交且均为单位向量。
+ * 正交化方法是 二分递归方法。
+ * 使用重正交化来提高数值稳定性。
+ * 
+ * 函数的输出通过 x 和 end_x 返回。x 输出规范正交化的向量组，end_x 表示线性无关组的范围。
+ * 由于正交化过程中可能存在线性相关的向量，end_x 会更新为线性无关组的结束索引（不含）。
+ * 
+ * @param x 				待正交化的向量族。
+ * @param start_x 			从x中的第start_x个向量开始进行正交化处理（含）。
+ * @param end_x 			待正交化的最后一个向量的索引（不含）。函数执行后，end_x 会被更新为线性无关组的结束索引。
+ * @param B 				用于定义B-内积。B = NULL时使用标准内积。
+ * 
+ * @param orth_self_method 	正交化方法。'E'表示使用 EigenValue Decomposition 方法，其他（推荐'M'）表示使用 Modified Gram-Schmidt 方法。
+ * 
+ * @param block_size 		分块大小
+ * @param max_reorth 		最大重正交化次数
+ * @param orth_zero_tol 	零向量容差
+ * @param reorth_tol 		重正交化容差
+ * 
+ * @param mv_ws 			多向量工作空间
+ * @param dbl_ws 			双精度工作空间
+ * @param ops 				包含各种操作函数的实现
+ */
+static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self_method, int block_size, int max_reorth, double orth_zero_tol, double reorth_tol, void **mv_ws, double *dbl_ws, struct OPS_ *ops)
 {
 	if (*end_x<=start_x) return;
-#if DEBUG
-	ops->Printf("%d,%d,%d\n",start_x,*end_x,block_size);
-#endif
-		
+
+	// Y. Li 论文中 Algorithm 3：1行
+	// 准备一些仅函数内使用的临时变量
 	int ncols = *end_x-start_x, length, start[2], end[2], idx, inc, idx_abs_max;
-	double *beta = dbl_ws, *coef = beta+1;
+	double *beta = dbl_ws, *coef = beta+1; // beta 指向地址 dbl_ws，coef 指向地址 dbl_ws+1，这里没有像函数 OrthSelf 中r_k和coef那样。
+
+	// Y. Li 论文中 Algorithm 3：2-7行
+	// 如果本轮中，待处理向量数不超过分块大小，即达到递归基，则直接调用 OrthSelf 或 OrthSelfEVP 函数进行正交化，随后直接返回。
 	if (ncols<=block_size) {
-#if TIME_BGS
-		time_bgs.orth_self_time -= ops->GetWtime();
-#endif
-		if (orth_self_method=='E') {
-			OrthSelfEVP(x,start_x,end_x,B,
-					max_reorth,orth_zero_tol,reorth_tol,mv_ws,coef,ops);
-		}
-		else {
-			OrthSelf(x,start_x,end_x,B,
-					max_reorth,orth_zero_tol,reorth_tol,mv_ws,coef,ops);
-		}
-#if TIME_BGS
-		time_bgs.orth_self_time += ops->GetWtime();
-#endif
+		if (orth_self_method=='E') OrthSelfEVP(x,start_x,end_x,B,max_reorth,orth_zero_tol,reorth_tol,mv_ws,coef,ops);
+		else OrthSelf(x,start_x,end_x,B,max_reorth,orth_zero_tol,reorth_tol,mv_ws,coef,ops);
 	}
+	// Y. Li 论文中 Algorithm 3：8-17行
+	// 如果本轮中，待处理向量数超过分块大小，则进行二分递归
 	else {
-		start[0] = start_x; end[0] = start_x+ncols/2;
+		// Y. Li 论文中 Algorithm 3：9-10行
+		// 二分递归的索引：*[0]是左半部分，*[1]是右半部分
+		start[0] = start_x; end[0] = start_x+ncols/2; // 在C语言中，整数除法会向下取整
 		start[1] = end[0] ; end[1] = *end_x;
-		/* 锟斤拷锟斤拷锟斤拷 X0: end[0] 锟斤拷锟杰伙拷谋锟?? */
-		OrthBinary(x,start[0],&end[0],B,orth_self_method,
-		      block_size,max_reorth,orth_zero_tol,reorth_tol,
-		      mv_ws,dbl_ws,ops);		
-		//ops->MultiVecView(x, 80, 81, ops);
-		//ops->Printf("start = %d-%d, end = %d-%d\n", 
-		//      start[0], start[1], end[0], end[1]);
-		/* 去锟斤拷 X1 锟斤拷 X0 锟侥诧拷锟斤拷 */
-		for (idx = 0; idx < 1+max_reorth; ++idx) {
-#if TIME_BGS
-			time_bgs.qAp_time -= ops->GetWtime();
-#endif
+		
+		// Y. Li 论文中 Algorithm 3：11行
+		// 第一次递归，对 X[start_x : start_x+ncols/2] 进行正交化
+		OrthBinary(x,start[0],&end[0],B,orth_self_method,block_size,max_reorth,orth_zero_tol,reorth_tol,mv_ws,dbl_ws,ops);		
+		// 此时 end[0] 已经更新为左半部分的线性无关组的结束索引（不含）
+
+		// Y. Li 论文中 Algorithm 3：12-15行
+		// 左半部分正交化后，将右半部分投影到左半部分的正交补空间中
+		// 重正交化，提高数值稳定性
+		for (idx = 0; idx < 1+max_reorth; ++idx) { // 最大重正交化次数为 (max_reorth + 1)
+			// 下面巧妙利用 mv_ws 存储 B X[当前块]，避免重复计算
 			int start_QtAP[2], end_QtAP[2];
+			// 如果 B 非空（非单位阵），并且已经不是第一次正交化了，那么计算 coef = mv_ws' X[start[1]:end[1]]
 			if (B!=NULL && idx > 0) {
 				start_QtAP[0] = start[1]; end_QtAP[0] = end[1];
 				start_QtAP[1] = 0       ; end_QtAP[1] = end[0]-start[0];
-				ops->MultiVecQtAP('S','T',x,NULL,mv_ws,0,start_QtAP,end_QtAP,
-						coef,end_QtAP[1]-start_QtAP[1],mv_ws,ops);
+				ops->MultiVecQtAP('S','T',x,NULL,mv_ws,0,start_QtAP,end_QtAP,coef,end_QtAP[1]-start_QtAP[1],mv_ws,ops);
 			}
+			// 如果 B 为空（单位阵），或者是第一次正交化，那么计算 coef = X[start[0]:end[0])' B X[start[1]:end[1]]
 			else {
 				start_QtAP[0] = start[1]; end_QtAP[0] = end[1];
 				start_QtAP[1] = start[0]; end_QtAP[1] = end[0];
-				ops->MultiVecQtAP('S','T',x,B,x,0,start_QtAP,end_QtAP,
-						coef,end_QtAP[1]-start_QtAP[1],mv_ws,ops);
+				ops->MultiVecQtAP('S','T',x,B,x,0,start_QtAP,end_QtAP,coef,end_QtAP[1]-start_QtAP[1],mv_ws,ops);
 			}
-#if TIME_BGS
-			time_bgs.qAp_time += ops->GetWtime();
-#endif
-
+			// 计算 coef  <--  -coef
 			length = (end[1] - start[1])*(end[0] - start[0]);
 			*beta  = -1.0; inc = 1;
-			dscal(&length,beta,coef,&inc);		
+			dscal(&length,beta,coef,&inc);
+			// 计算 X[start[1]:end[1]]  <--  X[start[1]:end[1]] + X[start[0]:end[0]) * coef
+			// 即 X[start[1]:end[1]]  <--  X[start[1]:end[1]] - X[start[0]:end[0]) X[start[0]:end[0])' B X[start[1]:end[1]]
+			// 简写即 X[右半部分]  <--  X[右半部分] - X[左半部分] X[左半部分)' B X[右半部分]
 			*beta  = 1.0;
-#if TIME_BGS
-			time_bgs.line_comb_time -= ops->GetWtime();
-#endif			
-			ops->MultiVecLinearComb(x,x,0,start,end,
-					coef,end[0]-start[0],beta,0,ops);
-#if TIME_BGS
-			time_bgs.line_comb_time += ops->GetWtime();
-#endif			
-
+			ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);
+			// 计算 coef 的绝对最大值是否小于重正交容差 reorth_tol ，如果足够小，则退出重正交化。
 			idx_abs_max = idamax(&length,coef,&inc);
-			if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
-#if DEBUG 
-			   ops->Printf("X1 - X0: The number of reorth = %d\n", idx);
-#endif
-			   break;
-			}
-		}			
-		/* 锟斤拷锟斤拷锟斤拷 X1 */ 
-		OrthBinary(x,start[1],&end[1],B,orth_self_method,
-		      block_size,max_reorth,orth_zero_tol,reorth_tol,
-		      mv_ws,dbl_ws,ops);
-		/* 锟斤拷 X0 锟斤拷锟斤拷锟斤拷锟斤拷夭锟斤拷锟斤拷锟?? X1 锟叫碉拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?? */
-		length = start[0]+ncols/2-end[0]; /* 锟斤拷锟斤拷锟斤拷夭锟斤拷值某锟斤拷锟?? */
-		*end_x = end[1]-length;
-		/* X1 锟斤拷锟斤拷锟斤拷锟街匡拷锟斤拷为 X0 锟斤拷锟皆诧拷锟斤拷锟结供锟侥筹拷锟斤拷*/
+			if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
+		}
+
+		// Y. Li 论文中 Algorithm 3：16行
+		// 第二次递归，对 X[start_x+ncols/2 : *end_x] 进行正交化
+		OrthBinary(x,start[1],&end[1],B,orth_self_method,block_size,max_reorth,orth_zero_tol,reorth_tol,mv_ws,dbl_ws,ops);
+		// 此时 end[1] 已经更新为右半部分的线性无关组的结束索引（不含）
+
+		// 处理剩余线性相关部分
+		length = start[0]+ncols/2-end[0]; // 左半部分的线性相关向量数
+		*end_x = end[1]-length; // 更新 *end_x 整体线性无关组的结束索引（不含）
+		// 利用 axpby 函数进行赋值，将最后 length 个向量覆盖到左半部分后原本线性相关的部分
 		length = (length<end[1]-start[1])?length:(end[1]-start[1]);
-		start[1] = end[0]; /* X0 锟斤拷锟斤拷锟斤拷氐锟斤拷锟绞嘉伙拷锟?? */
-		end[0]	 = end[1]; /* X1 锟斤拷锟斤拷锟斤拷锟街的斤拷锟斤拷位锟斤拷 */
+		start[1] = end[0];
+		end[0]	 = end[1];
 		start[0] = end[0]   - length;
 		end[1]   = start[1] + length;
-#if TIME_BGS
-		time_bgs.axpby_time -= ops->GetWtime();
-#endif 
 		ops->MultiVecAxpby(1.0,x,0.0,x,start,end,ops);
-#if TIME_BGS
-		time_bgs.axpby_time += ops->GetWtime();
-#endif				
 	}
 	return;
 }
 
-
-// 二分递归GramSchmidt正交化
-// Input: 
-// 		x 矩阵	B 矩阵
-//		start_x 起始位置
-//		ops 上下文
-// Output: 
-// 		x 矩阵X部分随机生成
-//		end_x 
-
-static void BinaryGramSchmidt(void **x, int start_x, int *end_x, 
-		void *B, struct OPS_ *ops)
+/**
+ * @brief 这是一个预备函数，用于为 二分递归方法 做准备
+ * 
+ * 将待处理向量投影到前序向量的正交补空间中，用重正交化提高数值稳定性；
+ * 根据待处理向量数，选择合适的正交化方法和分块大小；
+ * 调用 OrthBinary 函数进行递归正交化。
+ * 
+ * 函数的输出通过 x 和 end_x 返回。x 输出规范正交化的向量组，end_x 表示线性无关组的范围。
+ * 由于正交化过程中可能存在线性相关的向量，end_x 会更新为线性无关组的结束索引（不含）。
+ * 
+ * @param x 				待正交化的向量族。
+ * @param start_x 			从x中的第start_x个向量开始进行正交化处理（含）。
+ * @param end_x 			待正交化的最后一个向量的索引（不含）。函数执行后，end_x 会被更新为线性无关组的结束索引。
+ * @param B 				用于定义B-内积。B = NULL时使用标准内积。
+ * 
+ * @param ops 				包含各种操作函数的实现
+ */
+static void BinaryGramSchmidt(void **x, int start_x, int *end_x, void *B, struct OPS_ *ops)
 {
 	if (*end_x<=start_x) return;
-#if TIME_BGS
-	time_bgs.axpby_time     = 0.0;
-	time_bgs.line_comb_time = 0.0;
-	time_bgs.orth_self_time = 0.0;
-	time_bgs.qAp_time       = 0.0;
-#endif
-	
-	BinaryGramSchmidtOrth *bgs_orth = 
-		(BinaryGramSchmidtOrth*)ops->orth_workspace;
+
+	// 从 ops 中调取参数到 bgs_orth 中
+	BinaryGramSchmidtOrth *bgs_orth = (BinaryGramSchmidtOrth*)ops->orth_workspace;
 	int    start[2], end[2], block_size, idx, length, inc, idx_abs_max;
 	double *coef   , *beta , orth_zero_tol, reorth_tol;
 	void   **mv_ws;
@@ -563,95 +542,66 @@ static void BinaryGramSchmidt(void **x, int start_x, int *end_x,
 	block_size    = bgs_orth->block_size;
 	mv_ws         = bgs_orth->mv_ws;
 	beta          = bgs_orth->dbl_ws;
-	/* 去掉 X1 中 X0 的部分 */
+
+	// 若[0,start)非空，则认为[0,start)部分已经自正交，并把[start,end]部分投影到[0,start)的正交补中
 	if (start_x > 0) {
 		start[0] = 0     ; end[0] = start_x;
 		start[1] = end[0]; end[1] = *end_x ;
-		coef     = beta+1; 
-		for (idx = 0; idx < 1+bgs_orth->max_reorth; ++idx) {
-#if TIME_BGS
-			time_bgs.qAp_time -= ops->GetWtime();
-#endif
-			ops->MultiVecQtAP('S','N',x,B,x,0,start,end,
-					coef,end[0]-start[0],mv_ws,ops);
-#if TIME_BGS
-			time_bgs.qAp_time += ops->GetWtime();
-#endif
+		coef     = beta+1;
+		// 重正交化，提高数值稳定性
+		for (idx = 0; idx < 1+bgs_orth->max_reorth; ++idx) { // 最大重正交化次数为 (max_reorth + 1)
+			// 计算内积矩阵 coef = X[0:start)' B X[start:end]，得到 (start) x (end+1-start) 大小的矩阵
+			ops->MultiVecQtAP('S','N',x,B,x,0,start,end,coef,end[0]-start[0],mv_ws,ops);
+			// 计算 coef  <--  -coef
 			length = (end[1] - start[1])*(end[0] - start[0]); 
 			*beta  = -1.0; inc = 1;
-			dscal(&length,beta,coef,&inc);		
+			dscal(&length,beta,coef,&inc);
+			// 计算 X[start:end]  <--  X[0:start) * coef + X[start:end]
+			// 即 X[start:end]  <--  X[start:end] - X[0:start) X[0:start)' B X[start:end]
 			*beta  = 1.0;
-#if TIME_BGS
-			time_bgs.line_comb_time -= ops->GetWtime();
-#endif
-			ops->MultiVecLinearComb(x,x,0,start,end,
-					coef,end[0]-start[0],beta,0,ops);
-#if TIME_BGS
-			time_bgs.line_comb_time += ops->GetWtime();
-#endif		
+			ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);
+			// 计算coef的绝对最大值是否小于重正交容差reorth_tol，如果足够小，则退出重正交化。
 			idx_abs_max = idamax(&length,coef,&inc);
-			if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
-#if DEBUG
-			   ops->Printf("X1 - X0: The number of reorth = %d\n", idx);
-#endif
-			   break;
-			}
+			if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
 		}
 	}
-	/* 二分块正交化 */
-	/* 4<= block_size <= (*end_x-start_x)/4 */
+
+	// 选取合适的正交化方法 orth_self_method 和分块大小 block_size
 	char orth_self_method;
+	// 如果待处理向量数小于16，则使用 Modified Gram-Schmidt 方法，并默认 block_size 为 4
 	if ((*end_x-start_x)<16) {
-		if (block_size<=0) {
+		if (block_size<=0){
 			block_size = 4;
 		}
-		/* 使用 OrthSelf */
-		orth_self_method = 'M';		
+		orth_self_method = 'M'; // 'M' 表示 Modified Gram-Schmidt 方法
 	}
+	// 如果待处理向量数大于等于16，则使用 EigenValue Decomposition 方法，并默认 block_size 最大为 1/4 总向量数
 	else {		
 		if (block_size<=0 || block_size>(*end_x-start_x)/4) {
 			block_size = (*end_x-start_x)/4;
 		}
-		/* 使用 OrthSelfEVP */
-		orth_self_method = 'E';
+		orth_self_method = 'E'; // 'E' 表示 EigenValue Decomposition 方法
 	}
-	//ops->Printf("start_x = %d, end_x = %d, block_size = %d\n", start_x, *end_x, block_size);
 
-	OrthBinary(x,start_x,end_x,B,orth_self_method,
-	      block_size,bgs_orth->max_reorth,orth_zero_tol,reorth_tol,
-	      mv_ws,bgs_orth->dbl_ws,ops);
-	      
-	      
-#if TIME_BGS
-	ops->Printf("|--BGS----------------------------\n");
-	time_bgs.time_total = time_bgs.axpby_time
-		+time_bgs.line_comb_time
-		+time_bgs.orth_self_time
-		+time_bgs.qAp_time;
-	ops->Printf("|axpby  line_comb  orth_self  qAp\n");
-	ops->Printf("|%.2f\t%.2f\t%.2f\t%.2f\n",
-		time_bgs.axpby_time,		
-		time_bgs.line_comb_time,		
-		time_bgs.orth_self_time,		
-		time_bgs.qAp_time);
-	ops->Printf("|%.2f%%\t%.2f%%\t%.2f%%\t%.2f%%\n",
-		time_bgs.axpby_time    /time_bgs.time_total*100,
-		time_bgs.line_comb_time/time_bgs.time_total*100,
-		time_bgs.orth_self_time/time_bgs.time_total*100,
-		time_bgs.qAp_time      /time_bgs.time_total*100);
-	ops->Printf("|--BGS----------------------------\n");
-	time_bgs.axpby_time     = 0.0;
-	time_bgs.line_comb_time = 0.0;
-	time_bgs.orth_self_time = 0.0;
-	time_bgs.qAp_time       = 0.0;	
-#endif
+	// 调用 OrthBinary 函数进行递归正交化
+	OrthBinary(x,start_x,end_x,B,orth_self_method,block_size,bgs_orth->max_reorth,orth_zero_tol,reorth_tol,mv_ws,bgs_orth->dbl_ws,ops);
 	return;
 }
 
-
-void MultiVecOrthSetup_BinaryGramSchmidt(
-		int block_size, int max_reorth, double orth_zero_tol, 
-		void **mv_ws, double *dbl_ws, struct OPS_ *ops)
+/**
+ * @brief 这是一个初始化函数，用于设置 二分递归方法 的参数
+ * 
+ * 设置 二分递归方法 的参数，包括 block_size, max_reorth, orth_zero_tol, reorth_tol
+ * 以及工作空间指针。
+ * 
+ * @param block_size 	分块大小
+ * @param max_reorth 	最大重正交化次数
+ * @param orth_zero_tol 零向量容差
+ * @param mv_ws 		多向量工作空间
+ * @param dbl_ws 		双精度工作空间
+ * @param ops 			包含各种操作函数的实现
+ */
+void MultiVecOrthSetup_BinaryGramSchmidt(int block_size, int max_reorth, double orth_zero_tol, void **mv_ws, double *dbl_ws, struct OPS_ *ops)
 {
 	static BinaryGramSchmidtOrth bgs_orth_static = {
 		.block_size = 16  , .orth_zero_tol = 20*DBL_EPSILON, 
@@ -663,6 +613,6 @@ void MultiVecOrthSetup_BinaryGramSchmidt(
 	bgs_orth_static.mv_ws         = mv_ws ;
 	bgs_orth_static.dbl_ws        = dbl_ws;
 	ops->orth_workspace = (void *)&bgs_orth_static;
-	ops->MultiVecOrth = BinaryGramSchmidt;
+	ops->MultiVecOrth = BinaryGramSchmidt; // 设置正交化函数为 BinaryGramSchmidt
 	return;
 }
