@@ -18,14 +18,14 @@
  * 其默认实现在 ops_multi_vec.c 中。
  */
 
-#include	<stdio.h>
-#include	<stdlib.h>
-#include    <assert.h> 
-#include	<float.h>	// 调用 DBL_EPSILON
-#include    <math.h>
-#include    <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h> 
+#include <float.h>	// 调用 DBL_EPSILON
+#include <math.h>
+#include <time.h>
 
-#include    "ops_orth.h"
+#include "ops_orth.h"
 
 /**
  * @brief 这是一个核心子函数，使用 Modified Gram-Schmidt 正交化小块矩阵
