@@ -54,9 +54,12 @@ struct TimeBGS_ time_bgs = {0.0,0.0,0.0,0.0,0.0};
  * 正交化方法是 MGS. 
  * 使用重正交化来提高数值稳定性。
  * 
+ * 函数的输出通过 x 和 end_x 返回。x 输出规范正交化的向量组，end_x 表示线性无关组的范围。
+ * 由于正交化过程中可能存在线性相关的向量，end_x 会更新为线性无关组的结束索引（不含）。
+ * 
  * @param x 			待正交化的向量族。
  * @param start_x 		从x中的第start_x个向量开始进行正交化处理（含）。
- * @param end_x 		待正交化的最后一个向量的索引（不含）。
+ * @param end_x 		待正交化的最后一个向量的索引（不含）。函数执行后，end_x 会被更新为线性无关组的结束索引。
  * @param B 			用于定义B-内积。B = NULL时使用标准内积。
  * 
  * @param max_reorth 	表示最大重正交化次数（实际上，重正交化次数为(max_reorth - 2)）。
@@ -71,7 +74,7 @@ static void OrthSelf(void **x, int start_x, int *end_x, void *B, int max_reorth,
 {
 	/** 
 	 * Q: 为什么 end_x 是 int* 类型？
-	 * A: 可能某些函数需要将 end_x 作为传出参数，并考虑到封装函数的一致性，仅是目前未见具体应用。
+	 * A: 函数需要将 end_x 作为传出参数：函数执行后，end_x 会被更新为线性无关组的结束索引。
 	 */
 	
 	if (*end_x<=start_x) return;
@@ -111,6 +114,7 @@ static void OrthSelf(void **x, int start_x, int *end_x, void *B, int max_reorth,
 			}
 			--k; --(*end_x); // 回退列指标 k ，并缩减需要计算的列的范围。
 			// 如果第k列已经是最后一列，则在--(*end_x)后返回循环自然会直接退出。
+			// 这里对 *end_x 进行了更改，故 *end_x 也是传出参数。
 			continue;
 		}
 		// 如果x的第k列的范数非零，说明该向量可以正交于前面的向量并张出一维空间。
@@ -186,9 +190,12 @@ static void OrthSelf(void **x, int start_x, int *end_x, void *B, int max_reorth,
  * 正交化方法是 EVD-矩阵开方法。
  * 使用重正交化来提高数值稳定性。
  * 
+ * 函数的输出通过 x 和 end_x 返回。x 输出规范正交化的向量组，end_x 表示线性无关组的范围。
+ * 由于正交化过程中可能存在线性相关的向量，end_x 会更新为线性无关组的结束索引（不含）。
+ * 
  * @param x 			待正交化的向量族。
  * @param start_x 		从x中的第start_x个向量开始进行正交化处理（含）。
- * @param end_x 		待正交化的最后一个向量的索引（不含）。
+ * @param end_x 		待正交化的最后一个向量的索引（不含）。函数执行后，end_x 会被更新为线性无关组的结束索引。
  * @param B 			用于定义B-内积。B = NULL时使用标准内积。
  * 
  * @param max_reorth 	表示最大重正交化次数（实际上，重正交化次数为(max_reorth + 1)）。
@@ -250,6 +257,7 @@ static void OrthSelfEVP(void **x, int start_x, int *end_x, void *B, int max_reor
 		// 即 mv_ws = x * A(:, lin_dep:end) * diag{lambda^(-0.5)(lin_dep:end)}
 		ops->MultiVecLinearComb(NULL,mv_ws,0,start,end,NULL,0,W+lin_dep,1,ops);
 		*end_x = *end_x - lin_dep; // 缩减需要计算的列的范围
+		// 这里对 *end_x 进行了更改，故 *end_x 也是传出参数。
 		// 利用axpby函数进行赋值：x <-- mv_ws
 		start[0] = 0        ; end[0] = N-lin_dep;
 		start[1] = start_x  ; end[1] = *end_x;
@@ -270,9 +278,12 @@ static void OrthSelfEVP(void **x, int start_x, int *end_x, void *B, int max_reor
  * 正交化方法是 分块MGS方法。
  * 使用重正交化来提高数值稳定性。
  * 
+ * 函数的输出通过 x 和 end_x 返回。x 输出规范正交化的向量组，end_x 表示线性无关组的范围。
+ * 由于正交化过程中可能存在线性相关的向量，end_x 会更新为线性无关组的结束索引（不含）。
+ * 
  * @param x 			待正交化的向量族。
  * @param start_x 		从x中的第start_x个向量开始进行正交化处理（含）。
- * @param end_x 		待正交化的最后一个向量的索引（不含）。
+ * @param end_x 		待正交化的最后一个向量的索引（不含）。函数执行后，end_x 会被更新为线性无关组的结束索引。
  * @param B 			用于定义B-内积。B = NULL时使用标准内积。
  * 
  * @param ops 			包含各种操作函数的实现。
@@ -295,12 +306,14 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 	start[0] = 0     ; end[0] = start_x;
 	start[1] = end[0]; end[1] = *end_x ;
 	coef     = beta+1;						// coef 指向地址 dbl_ws+1
-	
+	// 但这里地址的取法并没有像函数 OrthSelf 中r_k和coef那样。这里beta指针在后文中不会修改到coef上的值。
+
+	// Y. Li 论文中 Algorithm 2：1-3行
 	// 如果[0,start)非空，则认为[0,start)部分已经自正交，并把[start,end]部分投影到[0,start)的正交补中
 	if (start_x > 0) {
 		// 重正交化，提高数值稳定性
-		for (idx = 0; idx < 1+mgs_orth->max_reorth; ++idx) { // 最大重正交化次数为 (mgs_orth->max_reorth + 1)	
-			// 计算内积矩阵 coef = X[0:start)' B X[start:end]，得到 start x end+1-start 大小的矩阵
+		for (idx = 0; idx < 1+mgs_orth->max_reorth; ++idx) { // 最大重正交化次数为 (max_reorth + 1)	
+			// 计算内积矩阵 coef = X[0:start)' B X[start:end]，得到 (start) x (end+1-start) 大小的矩阵
 			ops->MultiVecQtAP('S','N',x,B,x,0,start,end,coef,end[0]-start[0],mv_ws,ops);
 			// 计算 coef  <--  -coef
 			length = (end[1] - start[1])*(end[0] - start[0]);
@@ -318,62 +331,70 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 		}
 	}
 	
-	
-	int init_start = start_x, init_end; // 定义init_值为当前处理的块的start,end指标
+	// Y. Li 论文中 Algorithm 2：4-13行
+	int init_start = start_x, init_end; // 定义 init_* 值为当前处理的块的 start, end 指标
 	// 动态调整 block_size
 	// 如果 block_size 非正，取默认值 max{2, 总向量数的一半}
-	if (block_size <= 0) {
-	   block_size = (*end_x-init_start)/2 > 2 ? (*end_x-init_start)/2 : 2;
-	}
+	if (block_size <= 0) block_size = (*end_x-init_start)/2 > 2 ? (*end_x-init_start)/2 : 2;
 	// 确保 block_size 不超过总向量数。
 	block_size = (block_size<*end_x-init_start)?block_size:(*end_x-init_start);
-	// ops->Printf("start_x = %d, block_size = %d, end_x = %d\n",start_x,block_size,*end_x);
-	// 当待处理向量组非空，进入循环
+	// 当待处理向量组非空，进入循环，循环需要初始参数 init_start, block_size
 	while (block_size > 0) {
+		// Y. Li 论文中 Algorithm 2：5-8行
 		// 规范正交化 X[init_start : init_start + block_size]，函数内含重正交化措施
 		start[1] = init_start; end[1] = start[1]+block_size;
 		OrthSelf(x,start[1],&(end[1]),B,mgs_orth->max_reorth,orth_zero_tol,reorth_tol,mv_ws,mgs_orth->dbl_ws,ops);	      
-		// 为 init_end 赋值为 init_start + block_size
+		// 为 init_end 赋值为最后一个线性无关向量的索引+1
 		init_end = end[1];
-		
-		// 处理剩余长度
-		length = block_size - (end[1]-start[1]); // length 一定为 0 ？
-		// ops->Printf("length = %d\n",length);
-		length = (length<*end_x-end[1]-length)?length:(*end_x-end[1]-length);
+		// 此时各索引顺序：start[1]==init_start  ≤  end[1]==init_end  ≤  start[1]+block_size
+		//                [       线   性   无   关   部   分       )   应被剔除的线性相关部分
+
+		// 处理剩余线性相关部分
+		length = block_size - (end[1]-start[1]); // 线性相关部分的向量个数
+		length = (length<*end_x-end[1]-length)?length:(*end_x-end[1]-length); // 确保剩余向量数不超过总剩余向量数
 		if (length > 0) {
-			// 如果 length > 0，
+			// 如果有需要处理的线性相关向量（length 个向量）
 			// 利用 axpby 赋值：X[init_end : init_end + length)  <--  X[*end - length : *end)
+			// 将最后 length 个向量覆盖到 init_end 位置后原本线性相关的部分
 			end[0]   = *end_x; start[0] = end[0]-length;
 			start[1] = init_end; end[1] = start[1]+length;
 			ops->MultiVecAxpby(1.0,x,0.0,x,start,end,ops);
 		}
-		*end_x = *end_x - (block_size-(init_end-init_start));
+		*end_x = *end_x - (block_size-(init_end-init_start)); // 并缩减需要计算的列的范围
+		// 这里对 *end_x 进行了更改，故 *end_x 也是传出参数。
 
+		// Y. Li 论文中 Algorithm 2：9-12行
+		// 如果本次处理的正交化向量组非空，且后续还有向量未处理，则将后续向量投影到本次正交化向量组的正交补空间中
+		// 即 X[init_end : *end_x]  <--  X[init_end : *end_x] - X[init_start : init_end) X[init_start : init_end)' B X[init_end : *end_x]
 		if ( init_end < (*end_x) && init_start < init_end ) {	
-			for (idx = 0; idx < 1+mgs_orth->max_reorth; ++idx) {
-				/* 锟斤拷锟斤拷锟斤拷锟斤拷时, 锟斤拷锟斤拷锟斤拷锟斤拷 Bx, 锟斤拷 mv_ws 锟斤拷锟斤拷, 锟斤拷锟斤拷, QtAP 锟斤拷 coef 锟斤拷为 'T', 锟斤拷锟斤拷锟斤拷要转锟斤拷 */
+			// 重正交化，提高数值稳定性
+			for (idx = 0; idx < 1+mgs_orth->max_reorth; ++idx) { // 最大重正交化次数为 (max_reorth + 1)
+				// 下面巧妙利用 mv_ws 存储 B X[当前块]，避免重复计算
+				// 如果 B 非空（非单位阵），并且已经不是第一次正交化了，那么计算 coef = mv_ws' X[init_end : *end_x]
 				if (B!=NULL && idx > 0) {
 					start[0] = init_end  ; end[0] = *end_x;
 					start[1] = 0         ; end[1] = init_end - init_start;		
-					ops->MultiVecQtAP('S','T',x,NULL,mv_ws,0,start,end,
-							coef,end[1]-start[1],mv_ws,ops);
+					ops->MultiVecQtAP('S','T',x,NULL,mv_ws,0,start,end,coef,end[1]-start[1],mv_ws,ops);
 				}
+				// 如果 B 为空（单位阵），或者是第一次正交化，那么计算 coef = X[init_start : init_end)' B X[init_end : *end_x]
 				else {
 					start[0] = init_end  ; end[0] = *end_x  ;
 					start[1] = init_start; end[1] = init_end;		
-					ops->MultiVecQtAP('S','T',x,B,x,0,start,end,
-							coef,end[1]-start[1],mv_ws,ops);
+					ops->MultiVecQtAP('S','T',x,B,x,0,start,end,coef,end[1]-start[1],mv_ws,ops);
+					// 这里 mv_ws 是 B X[init_start : init_end) 的结果，存下来避免重正交化过程中发生重复计算。
 				}
-
+				// 计算 coef  <--  -coef
 				length = (end[1] - start[1])*(end[0] - start[0]); 
 				*beta  = -1.0; incx = 1;
 				dscal(&length,beta,coef,&incx);
+				// 计算 X[init_end : *end_x]  <--  X[init_end : *end_x] + X[init_start : init_end) * coef
+				// 即 X[init_end : *end_x]  <--  X[init_end : *end_x] - X[init_start : init_end) X[init_start : init_end)' B X[init_end : *end_x]
+				// 简写即 X[后续块]  <--  X[后续块] - X[当前块] X[当前块)' B X[后续块]
 				*beta  = 1.0;
-
 				start[0] = init_start; end[0] = init_end;
 				start[1] = init_end  ; end[1] = *end_x  ;
-				ops->MultiVecLinearComb(x,x,0,start,end,
-						coef,end[0]-start[0],beta,0,ops);
+				ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);
+				// 计算 coef 的绝对最大值是否小于重正交容差 reorth_tol ，如果足够小，则退出重正交化。
 				incx = 1;
 				idx_abs_max = idamax(&length,coef,&incx);
 				if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
@@ -381,8 +402,9 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 				}
 			}
 		}
-		init_start = init_end;
-		block_size = (block_size<*end_x-init_start)?block_size:(*end_x-init_start);		
+		// 更新 init_* 指标，准备下一次循环
+		init_start = init_end; // 更新 init_start 为当前处理的块的 end 指标
+		block_size = (block_size<*end_x-init_start)?block_size:(*end_x-init_start); // 确保 block_size 不超过总剩余向量数
 	}
 	return;
 }
