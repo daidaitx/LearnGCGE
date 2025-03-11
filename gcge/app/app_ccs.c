@@ -388,13 +388,23 @@ static void CCS_MatTransDotMultiVec(void *mat, void **x,
     return;
 }
 
+// 函数：OPS_CCS_Set
+// 功能：设置OPS结构体的CCS（压缩列存储）相关操作
+// 参数：ops - 指向OPS结构体的指针
 void OPS_CCS_Set(struct OPS_ *ops) {
+    // 断言：确保ops->lapack_ops为NULL，即尚未初始化
     assert(ops->lapack_ops == NULL);
+    // 创建lapack_ops结构体，并赋值给ops->lapack_ops
     OPS_Create(&(ops->lapack_ops));
+    // 设置lapack_ops结构体的相关操作
     OPS_LAPACK_Set(ops->lapack_ops);
+    // 设置ops结构体的Printf函数为默认的Printf函数
     ops->Printf = DefaultPrintf;
+    // 设置ops结构体的GetOptionFromCommandLine函数为默认的GetOptionFromCommandLine函数
     ops->GetOptionFromCommandLine = DefaultGetOptionFromCommandLine;
+    // 设置ops结构体的GetWtime函数为默认的GetWtime函数
     ops->GetWtime = DefaultGetWtime;
+    // 设置ops结构体的MatView函数为CCS_MatView函数
     ops->MatView = CCS_MatView;
     /* vec */
     ops->VecCreateByMat = CCS_VecCreateByMat;

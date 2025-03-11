@@ -7,11 +7,11 @@
 #ifndef __BEF_GCGE_SRC_IO_MMIO_READER_H__
 #define __BEF_GCGE_SRC_IO_MMIO_READER_H__
 
-#include "app_ccs.h"
-
 #ifdef __cplusplus
 extern "C"{
 #endif
+
+#include "app_ccs.h"
 
 /**
  * @brief 根据MTX文件创建CCS格式的稀疏矩阵

@@ -10,6 +10,8 @@
 #include "solver/gcge_solver.h"
 #include "io/io_eigen_result.h"
 #include "io/read_user_param.h"
+#include "io/input_read_tool.h"
+#include "error_code.h"
 
 extern "C" {
 #include "app_ccs.h"
@@ -24,17 +26,35 @@ extern "C" {
 
 int main(int argc, char *argv[])
 {
+    if (argc < 4) { // 检查参数数量
+        std::cerr << "Usage: mpiexec -n <b> program <ccs_matA> <ccs_matB> <paramFile>" << std::endl;
+        return GCGE_ERR_INPUT;
+    }
+
 #if OPS_USE_MPI
     MPI_Init(&argc, &argv);
 #endif
     // 1、读取文件
     CCSMAT ccs_matA;
     char *fileA = argv[1];
-    CreateCCSFromMTX(&ccs_matA, fileA);
-
+    auto err = InputReadTool::ReadCcsFromMtx(&ccs_matA, fileA);
+    if (err != GCGE_SUCCESS) {
+        return err;
+    }
     CCSMAT ccs_matB;
     char *fileB = argv[2];
-    CreateCCSFromMTX(&ccs_matB, fileB);
+    err = InputReadTool::ReadCcsFromMtx(&ccs_matB, fileB);
+    if (err != GCGE_SUCCESS) {
+        return err;
+    }
+    // 1.2、读取用户参数文件
+    GcgeParam gcgeparam{20};
+    ExtractMethod extractMethod;    // 结构体对象，保存用户设置的特征值抽取方式
+    std::string usrParaFile = argv[3];
+    err = InputReadTool::readUserParam(gcgeparam, extractMethod, usrParaFile);
+    if (err != GCGE_SUCCESS) {
+        return err;
+    }
 
     // 2、设置工作空间
     OPS* ccs_ops = NULL;
@@ -48,13 +68,7 @@ int main(int argc, char *argv[])
     ops = ccs_ops;
     matA = static_cast<void*>(&ccs_matA);
     matB = static_cast<void*>(&ccs_matB);
-    GcgeParam gcgeparam{20};
 
-    // 3.1、读取用户参数文件
-    ExtractMethod extractMethod;    // 结构体对象，保存用户设置的特征值抽取方式
-    ReadUserParam readUP;           // 读取用户参数对象，读取txt求解参数文件
-    char *usrParaFile = argv[3];
-    readUP.readUserParam(gcgeparam, extractMethod, usrParaFile);
     gcgeparam.shift = 0;
     if (gcgeparam.nevConv <= 50) {
         gcgeparam.block_size = gcgeparam.nevConv;
