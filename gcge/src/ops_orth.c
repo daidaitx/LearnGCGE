@@ -27,6 +27,29 @@
 
 #include "ops_orth.h"
 
+#define  DEBUG 0
+#define  TIME_MGS 0
+#define  TIME_BGS 0
+
+typedef struct TimeMGS_ {
+	double axpby_time;
+	double line_comb_time;
+	double orth_self_time;
+    double qAp_time;
+	double time_total;
+} TimeMGS;
+
+typedef struct TimeBGS_ {
+	double axpby_time;
+	double line_comb_time;
+	double orth_self_time;
+    double qAp_time;
+	double time_total;
+} TimeBGS;
+
+struct TimeMGS_ time_mgs = {0.0,0.0,0.0,0.0,0.0};
+struct TimeBGS_ time_bgs = {0.0,0.0,0.0,0.0,0.0};
+
 /**
  * @brief 这是一个核心子函数，使用 Modified Gram-Schmidt 正交化小块矩阵
  * 
@@ -78,8 +101,11 @@ static void OrthSelf(void **x, int start_x, int *end_x, void *B, int max_reorth,
 		 * Q: 为什么r_k可能不是向量，却是 double* 类型？
 		 * A: 用列优先一维数组储存矩阵，行数为ldQAP = end[0]-start[0]，调用(i,j)元使用r_k[i + j * ldQAP]. 
 		 */
-
-		// 为r_k的第一个元素*r_k（x的第k列与自身的B-内积）开根号，使得r_k的第一个元素成为 x的第k列 的 B-范数。
+#if DEBUG
+		ops->Printf("k = %d, start = %d,%d, end = %d,%d\n", k, start[0], start[1], end[0], end[1]);
+		ops->Printf("r_k = %e\n", *r_k);
+#endif
+        // 为r_k的第一个元素*r_k（x的第k列与自身的B-内积）开根号，使得r_k的第一个元素成为 x的第k列 的 B-范数。
 		*r_k = sqrt(*r_k);
 
 		// 如果x的第k列的范数等于0，即这个向量经过投影到前面向量的正交补后为0，说明它可以被前面的向量线性表出，该向量不能张出一维空间，需要进行剔除。
@@ -154,7 +180,12 @@ static void OrthSelf(void **x, int start_x, int *end_x, void *B, int max_reorth,
 				ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);			
 				// 计算coef的绝对最大值是否小于重正交容差reorth_tol，如果足够小，则退出重正交化。
 				idx_abs_max = idamax(&length,coef,&inc);
-				if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
+				if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
+#if DEBUG
+					ops->Printf("OrthSelf: The number of reorth = %d\n", idx);
+#endif
+					break;
+				}
 			}			
 		}
 	}
@@ -187,7 +218,9 @@ static void OrthSelf(void **x, int start_x, int *end_x, void *B, int max_reorth,
 static void OrthSelfEVP(void **x, int start_x, int *end_x, void *B, int max_reorth, double orth_zero_tol, double reorth_tol, void **mv_ws, double *dbl_ws, struct OPS_ *ops)
 {
 	if (*end_x<=start_x) return;
-
+#if DEBUG 
+	ops->Printf("start_x = %d, end_x = %d\n", start_x, *end_x);
+#endif
 	// 准备一些仅函数内使用的临时变量
 	int    k, start[2], end[2], idx, inc = 1, lin_dep; 
 	char   JOBZ = 'V', UPLO = 'L';
@@ -206,20 +239,41 @@ static void OrthSelfEVP(void **x, int start_x, int *end_x, void *B, int max_reor
 		// 确保成功计算A的特征值分解 A diag{W} A' <-- A，其中W是升序排列的特征值构成的向量。
 		N = *end_x-start_x; LDA = N  ; LWORK = 3*N*N-N; W = A+N*N; WORK  = W+N;
 		dsyev(&JOBZ,&UPLO,&N,A,&LDA,W,WORK,&LWORK,&INFO);
+#if DEBUG
+		//ops->MultiVecView(x, start[0], end[0], ops);
+		int i;
+		for (i = 0; i < N*N; ++i) {
+		   if (i%LDA==0) printf("\n");
+		   ops->Printf("%e\t", A[i]);
+		}
+		ops->Printf("\n");
+		ops->Printf("INFO = %d, start = %d-%d, end = %d-%d\n", 
+		      INFO, start[0], start[1], end[0], end[1]);
+#endif
 		assert(INFO==0);
-
+#if DEBUG
+		ops->Printf("\n%d:\n",idx);
+#endif
 		lin_dep = 0; // 初始化线性相关向量数
 		// 遍历每一个特征值
 		for (k = 0; k < N; ++k) {
+#if DEBUG
+			ops->Printf("%e\n",W[k]);
+#endif
 			assert(W[k] > -orth_zero_tol); // 确保特征值非负
 			// 如果特征值为正，则计算其开方倒数（^-0.5）
-			if (fabs(W[k]) > orth_zero_tol) W[k] = 1.0/sqrt(W[k]);
+			if (fabs(W[k]) > orth_zero_tol) {
+				W[k] = 1.0/sqrt(W[k]);
+			}
 			// 如果特征值为0，则在lin_dep上记录一次
-			else ++lin_dep;
+			else {
+				++lin_dep;
+			}
 		}
 		// 若存在线性相关向量，输出线性相关向量的数量信息
-		if (lin_dep > 0) ops->Printf("There has %d linear dependent vec\n",lin_dep);
-
+		if (lin_dep > 0) {
+			ops->Printf("There has %d linear dependent vec\n",lin_dep);
+		}
 		// 由于特征值是升序排列的，故零特征值及其对应的特征向量应在最前方。
 		// 剔除零特征值的特征向量：计算 mv_ws = x * A(:, lin_dep:end)
 		start[0] = start_x  ; end[0] = *end_x;
@@ -235,7 +289,13 @@ static void OrthSelfEVP(void **x, int start_x, int *end_x, void *B, int max_reor
 		start[1] = start_x  ; end[1] = *end_x;
 		ops->MultiVecAxpby(1.0,mv_ws,0.0,x,start,end,ops);
 		// 如果不再有线性相关项，且特征值之和足够接近N（理论上W应为全一向量），则停止重正交化。
-		if (lin_dep==0&&fabs(dasum(&N,W,&inc)-N)<reorth_tol) break;	
+		if (lin_dep==0&&fabs(dasum(&N,W,&inc)-N)<reorth_tol) {
+#if DEBUG
+			ops->Printf("lin_dep = %d, dasum(&N,W,&inc) = %e, reorth_tol = %e\n", 
+				lin_dep, dasum(&N,W,&inc), reorth_tol);
+#endif
+			break;	
+		}
 	}
 	return;
 }
@@ -259,7 +319,17 @@ static void OrthSelfEVP(void **x, int start_x, int *end_x, void *B, int max_reor
  */
 static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, struct OPS_ *ops)
 {
+#if DEBUG
+	ops->Printf("ModifiedGramSchmidtOrth (%d, %d)\n", start_x, *end_x);
+#endif
 	if (*end_x <= start_x) return;
+
+#if TIME_MGS
+	time_mgs.axpby_time     = 0.0;
+	time_mgs.line_comb_time = 0.0;
+	time_mgs.orth_self_time = 0.0;
+	time_mgs.qAp_time       = 0.0;
+#endif
 
 	// 从 ops 中调取参数到 mgs_orth 中
 	ModifiedGramSchmidtOrth *mgs_orth = (ModifiedGramSchmidtOrth*)ops->orth_workspace;
@@ -282,8 +352,14 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 	if (start_x > 0) {
 		// 重正交化，提高数值稳定性
 		for (idx = 0; idx < 1+mgs_orth->max_reorth; ++idx) { // 最大重正交化次数为 (max_reorth + 1)	
+#if TIME_MGS
+			time_mgs.qAp_time -= ops->GetWtime();
+#endif
 			// 计算内积矩阵 coef = X[0:start)' B X[start:end]，得到 (start) x (end+1-start) 大小的矩阵
 			ops->MultiVecQtAP('S','N',x,B,x,0,start,end,coef,end[0]-start[0],mv_ws,ops);
+#if TIME_MGS
+			time_mgs.qAp_time += ops->GetWtime();
+#endif 
 			// 计算 coef  <--  -coef
 			length = (end[1] - start[1])*(end[0] - start[0]);
 			*beta = -1.0; incx = 1;
@@ -291,10 +367,21 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 			// 计算 X[start:end]  <--  X[0:start) * coef + X[start:end]
 			// 即 X[start:end]  <--  X[start:end] - X[0:start) X[0:start)' B X[start:end]
 			*beta = 1.0;
+#if TIME_MGS
+			time_mgs.line_comb_time -= ops->GetWtime();
+#endif
 			ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);
+#if TIME_MGS
+			time_mgs.line_comb_time += ops->GetWtime();
+#endif 
 			// 计算coef的绝对最大值是否小于重正交容差reorth_tol，如果足够小，则退出重正交化。
 			idx_abs_max = idamax(&length,coef,&incx);
-			if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
+			if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
+#if DEBUG
+				ops->Printf("X1 - X0: The number of reorth = %d\n", idx);
+#endif
+				break;
+			}
 		}
 	}
 	
@@ -302,15 +389,26 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 	int init_start = start_x, init_end; // 定义 init_* 值为当前处理的块的 start, end 指标
 	// 动态调整 block_size
 	// 如果 block_size 非正，取默认值 max{2, 总向量数的一半}
-	if (block_size <= 0) block_size = (*end_x-init_start)/2 > 2 ? (*end_x-init_start)/2 : 2;
+	if (block_size <= 0) {
+		block_size = (*end_x-init_start)/2 > 2 ? (*end_x-init_start)/2 : 2;
+	}
 	// 确保 block_size 不超过总向量数。
 	block_size = (block_size<*end_x-init_start)?block_size:(*end_x-init_start);
 	// 当待处理向量组非空，进入循环，循环需要初始参数 init_start, block_size
 	while (block_size > 0) {
+#if DEBUG
+		ops->Printf("start block_size %d\n", block_size);
+#endif
 		// Y. Li 论文中 Algorithm 2：5-8行
 		// 规范正交化 X[init_start : init_start + block_size]，函数内含重正交化措施
 		start[1] = init_start; end[1] = start[1]+block_size;
+#if TIME_MGS
+		time_mgs.orth_self_time -= ops->GetWtime();
+#endif
 		OrthSelf(x,start[1],&(end[1]),B,mgs_orth->max_reorth,orth_zero_tol,reorth_tol,mv_ws,mgs_orth->dbl_ws,ops);	      
+#if TIME_MGS
+		time_mgs.orth_self_time += ops->GetWtime();
+#endif 
 		// 为 init_end 赋值为最后一个线性无关向量的索引+1
 		init_end = end[1];
 		// 此时各索引顺序：start[1]==init_start  ≤  end[1]==init_end  ≤  start[1]+block_size
@@ -325,7 +423,13 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 			// 将最后 length 个向量覆盖到 init_end 位置后原本线性相关的部分
 			end[0]   = *end_x; start[0] = end[0]-length;
 			start[1] = init_end; end[1] = start[1]+length;
+#if TIME_MGS
+			time_mgs.axpby_time -= ops->GetWtime();
+#endif 
 			ops->MultiVecAxpby(1.0,x,0.0,x,start,end,ops);
+#if TIME_MGS
+			time_mgs.axpby_time += ops->GetWtime();
+#endif 
 		}
 		*end_x = *end_x - (block_size-(init_end-init_start)); // 并缩减需要计算的列的范围
 		// 这里对 *end_x 进行了更改，故 *end_x 也是传出参数。
@@ -336,20 +440,32 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 		if ( init_end < (*end_x) && init_start < init_end ) {	
 			// 重正交化，提高数值稳定性
 			for (idx = 0; idx < 1+mgs_orth->max_reorth; ++idx) { // 最大重正交化次数为 (max_reorth + 1)
+#if TIME_MGS
+				time_mgs.qAp_time -= ops->GetWtime();
+#endif
 				// 下面巧妙利用 mv_ws 存储 B X[当前块]，避免重复计算
 				// 如果 B 非空（非单位阵），并且已经不是第一次正交化了，那么计算 coef = mv_ws' X[init_end : *end_x]
 				if (B!=NULL && idx > 0) {
 					start[0] = init_end  ; end[0] = *end_x;
 					start[1] = 0         ; end[1] = init_end - init_start;		
+#if DEBUG
+					ops->Printf("start = %d,%d, end = %d,%d, idx = %d\n",start[0],start[1],end[0],end[1],idx);
+#endif
 					ops->MultiVecQtAP('S','T',x,NULL,mv_ws,0,start,end,coef,end[1]-start[1],mv_ws,ops);
 				}
 				// 如果 B 为空（单位阵），或者是第一次正交化，那么计算 coef = X[init_start : init_end)' B X[init_end : *end_x]
 				else {
 					start[0] = init_end  ; end[0] = *end_x  ;
 					start[1] = init_start; end[1] = init_end;		
+#if DEBUG
+					ops->Printf("start = %d,%d, end = %d,%d, idx = %d\n",start[0],start[1],end[0],end[1],idx);
+#endif
 					ops->MultiVecQtAP('S','T',x,B,x,0,start,end,coef,end[1]-start[1],mv_ws,ops);
 					// 这里 mv_ws 是 B X[init_start : init_end) 的结果，存下来避免重正交化过程中发生重复计算。
 				}
+#if TIME_MGS
+				time_mgs.qAp_time += ops->GetWtime();
+#endif
 				// 计算 coef  <--  -coef
 				length = (end[1] - start[1])*(end[0] - start[0]); 
 				*beta  = -1.0; incx = 1;
@@ -360,17 +476,55 @@ static void ModifiedGramSchmidt(void **x, int start_x, int *end_x, void *B, stru
 				*beta  = 1.0;
 				start[0] = init_start; end[0] = init_end;
 				start[1] = init_end  ; end[1] = *end_x  ;
+#if TIME_MGS
+				time_mgs.line_comb_time -= ops->GetWtime();
+#endif 
 				ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);
+#if TIME_MGS
+				time_mgs.line_comb_time += ops->GetWtime();
+#endif 
 				// 计算 coef 的绝对最大值是否小于重正交容差 reorth_tol ，如果足够小，则退出重正交化。
 				incx = 1;
 				idx_abs_max = idamax(&length,coef,&incx);
-				if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
+				if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
+#if DEBUG
+				   ops->Printf("X1 - block_size: The number of reorth = %d\n", idx);
+#endif
+					break;
+				}
 			}
 		}
 		// 更新 init_* 指标，准备下一次循环
 		init_start = init_end; // 更新 init_start 为当前处理的块的 end 指标
 		block_size = (block_size<*end_x-init_start)?block_size:(*end_x-init_start); // 确保 block_size 不超过总剩余向量数
+#if DEBUG
+		ops->Printf("end block_size %d\n", block_size);
+#endif
 	}
+
+#if TIME_MGS
+	ops->Printf("|--MGS----------------------------\n");
+	time_mgs.time_total = time_mgs.axpby_time
+		+time_mgs.line_comb_time
+		+time_mgs.orth_self_time
+		+time_mgs.qAp_time;
+	ops->Printf("|axpby  line_comb  orth_self  qAp\n");
+	ops->Printf("|%.2f\t%.2f\t%.2f\t%.2f\n",
+		time_mgs.axpby_time,		
+		time_mgs.line_comb_time,		
+		time_mgs.orth_self_time,		
+		time_mgs.qAp_time);
+	ops->Printf("|%.2f%%\t%.2f%%\t%.2f%%\t%.2f%%\n",
+		time_mgs.axpby_time    /time_mgs.time_total*100,
+		time_mgs.line_comb_time/time_mgs.time_total*100,
+		time_mgs.orth_self_time/time_mgs.time_total*100,
+		time_mgs.qAp_time      /time_mgs.time_total*100);
+	ops->Printf("|--MGS----------------------------\n");
+	time_mgs.axpby_time     = 0.0;
+	time_mgs.line_comb_time = 0.0;
+	time_mgs.orth_self_time = 0.0;
+	time_mgs.qAp_time       = 0.0;	
+#endif
 	return;
 }
 
@@ -435,6 +589,9 @@ void MultiVecOrthSetup_ModifiedGramSchmidt(int block_size, int max_reorth, doubl
 static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self_method, int block_size, int max_reorth, double orth_zero_tol, double reorth_tol, void **mv_ws, double *dbl_ws, struct OPS_ *ops)
 {
 	if (*end_x<=start_x) return;
+#if DEBUG
+	ops->Printf("%d,%d,%d\n",start_x,*end_x,block_size);
+#endif
 
 	// Y. Li 论文中 Algorithm 3：1行
 	// 准备一些仅函数内使用的临时变量
@@ -444,8 +601,18 @@ static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self
 	// Y. Li 论文中 Algorithm 3：2-7行
 	// 如果本轮中，待处理向量数不超过分块大小，即达到递归基，则直接调用 OrthSelf 或 OrthSelfEVP 函数进行正交化，随后直接返回。
 	if (ncols<=block_size) {
-		if (orth_self_method=='E') OrthSelfEVP(x,start_x,end_x,B,max_reorth,orth_zero_tol,reorth_tol,mv_ws,coef,ops);
-		else OrthSelf(x,start_x,end_x,B,max_reorth,orth_zero_tol,reorth_tol,mv_ws,coef,ops);
+#if TIME_BGS
+		time_bgs.orth_self_time -= ops->GetWtime();
+#endif
+		if (orth_self_method=='E') {
+			OrthSelfEVP(x,start_x,end_x,B,max_reorth,orth_zero_tol,reorth_tol,mv_ws,coef,ops);
+		}
+		else {
+			OrthSelf(x,start_x,end_x,B,max_reorth,orth_zero_tol,reorth_tol,mv_ws,coef,ops);
+		}
+#if TIME_BGS
+		time_bgs.orth_self_time += ops->GetWtime();
+#endif
 	}
 	// Y. Li 论文中 Algorithm 3：8-17行
 	// 如果本轮中，待处理向量数超过分块大小，则进行二分递归
@@ -464,6 +631,9 @@ static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self
 		// 左半部分正交化后，将右半部分投影到左半部分的正交补空间中
 		// 重正交化，提高数值稳定性
 		for (idx = 0; idx < 1+max_reorth; ++idx) { // 最大重正交化次数为 (max_reorth + 1)
+#if TIME_BGS
+			time_bgs.qAp_time -= ops->GetWtime();
+#endif
 			// 下面巧妙利用 mv_ws 存储 B X[当前块]，避免重复计算
 			int start_QtAP[2], end_QtAP[2];
 			// 如果 B 非空（非单位阵），并且已经不是第一次正交化了，那么计算 coef = mv_ws' X[start[1]:end[1]]
@@ -478,6 +648,9 @@ static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self
 				start_QtAP[1] = start[0]; end_QtAP[1] = end[0];
 				ops->MultiVecQtAP('S','T',x,B,x,0,start_QtAP,end_QtAP,coef,end_QtAP[1]-start_QtAP[1],mv_ws,ops);
 			}
+#if TIME_BGS
+			time_bgs.qAp_time += ops->GetWtime();
+#endif
 			// 计算 coef  <--  -coef
 			length = (end[1] - start[1])*(end[0] - start[0]);
 			*beta  = -1.0; inc = 1;
@@ -486,10 +659,21 @@ static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self
 			// 即 X[start[1]:end[1]]  <--  X[start[1]:end[1]] - X[start[0]:end[0]) X[start[0]:end[0])' B X[start[1]:end[1]]
 			// 简写即 X[右半部分]  <--  X[右半部分] - X[左半部分] X[左半部分)' B X[右半部分]
 			*beta  = 1.0;
+#if TIME_BGS
+			time_bgs.line_comb_time -= ops->GetWtime();
+#endif	
 			ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);
+#if TIME_BGS
+			time_bgs.line_comb_time += ops->GetWtime();
+#endif
 			// 计算 coef 的绝对最大值是否小于重正交容差 reorth_tol ，如果足够小，则退出重正交化。
 			idx_abs_max = idamax(&length,coef,&inc);
-			if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
+			if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
+#if DEBUG 
+				ops->Printf("X1 - X0: The number of reorth = %d\n", idx);
+#endif
+				break;
+			}
 		}
 
 		// Y. Li 论文中 Algorithm 3：16行
@@ -506,7 +690,13 @@ static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self
 		end[0]	 = end[1];
 		start[0] = end[0]   - length;
 		end[1]   = start[1] + length;
+#if TIME_BGS
+		time_bgs.axpby_time -= ops->GetWtime();
+#endif 
 		ops->MultiVecAxpby(1.0,x,0.0,x,start,end,ops);
+#if TIME_BGS
+		time_bgs.axpby_time += ops->GetWtime();
+#endif	
 	}
 	return;
 }
@@ -531,6 +721,12 @@ static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self
 static void BinaryGramSchmidt(void **x, int start_x, int *end_x, void *B, struct OPS_ *ops)
 {
 	if (*end_x<=start_x) return;
+#if TIME_BGS
+	time_bgs.axpby_time     = 0.0;
+	time_bgs.line_comb_time = 0.0;
+	time_bgs.orth_self_time = 0.0;
+	time_bgs.qAp_time       = 0.0;
+#endif
 
 	// 从 ops 中调取参数到 bgs_orth 中
 	BinaryGramSchmidtOrth *bgs_orth = (BinaryGramSchmidtOrth*)ops->orth_workspace;
@@ -550,8 +746,14 @@ static void BinaryGramSchmidt(void **x, int start_x, int *end_x, void *B, struct
 		coef     = beta+1;
 		// 重正交化，提高数值稳定性
 		for (idx = 0; idx < 1+bgs_orth->max_reorth; ++idx) { // 最大重正交化次数为 (max_reorth + 1)
+#if TIME_BGS
+			time_bgs.qAp_time -= ops->GetWtime();
+#endif
 			// 计算内积矩阵 coef = X[0:start)' B X[start:end]，得到 (start) x (end+1-start) 大小的矩阵
 			ops->MultiVecQtAP('S','N',x,B,x,0,start,end,coef,end[0]-start[0],mv_ws,ops);
+#if TIME_BGS
+			time_bgs.qAp_time += ops->GetWtime();
+#endif
 			// 计算 coef  <--  -coef
 			length = (end[1] - start[1])*(end[0] - start[0]); 
 			*beta  = -1.0; inc = 1;
@@ -559,10 +761,21 @@ static void BinaryGramSchmidt(void **x, int start_x, int *end_x, void *B, struct
 			// 计算 X[start:end]  <--  X[0:start) * coef + X[start:end]
 			// 即 X[start:end]  <--  X[start:end] - X[0:start) X[0:start)' B X[start:end]
 			*beta  = 1.0;
+#if TIME_BGS
+			time_bgs.line_comb_time -= ops->GetWtime();
+#endif
 			ops->MultiVecLinearComb(x,x,0,start,end,coef,end[0]-start[0],beta,0,ops);
+#if TIME_BGS
+			time_bgs.line_comb_time += ops->GetWtime();
+#endif
 			// 计算coef的绝对最大值是否小于重正交容差reorth_tol，如果足够小，则退出重正交化。
 			idx_abs_max = idamax(&length,coef,&inc);
-			if (fabs(coef[idx_abs_max-1]) < reorth_tol) break;
+			if (fabs(coef[idx_abs_max-1]) < reorth_tol) {
+#if DEBUG
+			   ops->Printf("X1 - X0: The number of reorth = %d\n", idx);
+#endif
+				break;
+			}
 		}
 	}
 
@@ -585,6 +798,30 @@ static void BinaryGramSchmidt(void **x, int start_x, int *end_x, void *B, struct
 
 	// 调用 OrthBinary 函数进行递归正交化
 	OrthBinary(x,start_x,end_x,B,orth_self_method,block_size,bgs_orth->max_reorth,orth_zero_tol,reorth_tol,mv_ws,bgs_orth->dbl_ws,ops);
+	
+#if TIME_BGS
+	ops->Printf("|--BGS----------------------------\n");
+	time_bgs.time_total = time_bgs.axpby_time
+		+time_bgs.line_comb_time
+		+time_bgs.orth_self_time
+		+time_bgs.qAp_time;
+	ops->Printf("|axpby  line_comb  orth_self  qAp\n");
+	ops->Printf("|%.2f\t%.2f\t%.2f\t%.2f\n",
+		time_bgs.axpby_time,		
+		time_bgs.line_comb_time,		
+		time_bgs.orth_self_time,		
+		time_bgs.qAp_time);
+	ops->Printf("|%.2f%%\t%.2f%%\t%.2f%%\t%.2f%%\n",
+		time_bgs.axpby_time    /time_bgs.time_total*100,
+		time_bgs.line_comb_time/time_bgs.time_total*100,
+		time_bgs.orth_self_time/time_bgs.time_total*100,
+		time_bgs.qAp_time      /time_bgs.time_total*100);
+	ops->Printf("|--BGS----------------------------\n");
+	time_bgs.axpby_time     = 0.0;
+	time_bgs.line_comb_time = 0.0;
+	time_bgs.orth_self_time = 0.0;
+	time_bgs.qAp_time       = 0.0;	
+#endif
 	return;
 }
 
