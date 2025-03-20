@@ -22,8 +22,8 @@
 #include "ops.h"
 
 /**
- * 本代码库未使用 DefaultVecFromItoJ 函数
- * 在 ops_lin_sol.c 中使用了 DefaultMultiVecFromItoJ 函数
+ * @todo 本代码库未使用 DefaultVecFromItoJ 函数
+ * @todo 在 ops_lin_sol.c 中使用了 DefaultMultiVecFromItoJ 函数，但似乎没有真的调用，这需要检查文档 ops_lin_sol.c 的具体实现
  */
 
 /**
