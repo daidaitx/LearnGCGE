@@ -29,23 +29,23 @@
 /**
  * @brief 【从粗层到细层的插值】和【从细层到粗层的限制】的默认函数（单向量版本）
  * 
- * @param P_array 	转移矩阵数组，P_array[i]表示从第 i+1 层到第 i 层的转移矩阵
- * @param level_i 	【源层】的层号
- * @param level_j 	【目标层】的层号
- * @param vec_i 	【源层】的向量
- * @param vec_j 	【目标层】的向量
+ * @param P_array [in]   转移矩阵数组，P_array[i]表示从第 i+1 层到第 i 层的转移矩阵
+ * @param level_i [in]  【源层】的层号
+ * @param level_j [in]  【目标层】的层号
+ * @param vec_i   [in]  【源层】的向量
+ * @param vec_j   [out] 【目标层】的向量
  * 
- * @param vec_ws 	向量的工作空间，用于存储中间结果
- * @param ops 		集合了线性代数操作
+ * @param vec_ws  [out] 向量的工作空间，用于存储中间结果
+ * @param ops     [in]  集合了线性代数操作
  * 
  * @note 层数编号从 0 开始，最细网格层号为 0，最粗网格层号为 L-1
  */
 void DefaultVecFromItoJ(void **P_array, int level_i, int level_j, void *vec_i, void *vec_j, void **vec_ws, struct OPS_ *ops) {
 	/**
-	 * @param from_vec 	【源层】的向量
-	 * @param to_vec 	【目标层】的向量
+	 * @param from_vec 【源层】的向量
+	 * @param to_vec   【目标层】的向量
 	 * 
-	 * @param k 		循环变量
+	 * @param k        循环变量
 	 */
 	void *from_vec, *to_vec;
 	int k = 0;
@@ -57,15 +57,15 @@ void DefaultVecFromItoJ(void **P_array, int level_i, int level_j, void *vec_i, v
 		/**
 		 * 层号顺序：j < i
 		 * 定义：
-		 * 		vec_ws[i] = vec_i
-		 * 		vec_ws[j] = vec_j
+		 *     vec_ws[i] = vec_i
+		 *     vec_ws[j] = vec_j
 		 * 计算：
-		 *  	vec_ws[i-1] = P[i-1] * vec_ws[i  ];
-		 * 		vec_ws[i-2] = P[i-2] * vec_ws[i-1];
-		 * 		...
-		 * 		vec_ws[j+1] = P[j+1] * vec_ws[j+2];
-		 * 		vec_ws[j  ] = P[j  ] * vec_ws[j+1];
-		 */	
+		 *     vec_ws[i-1] = P[i-1] * vec_ws[i  ];
+		 *     vec_ws[i-2] = P[i-2] * vec_ws[i-1];
+		 *     ...
+		 *     vec_ws[j+1] = P[j+1] * vec_ws[j+2];
+		 *     vec_ws[j  ] = P[j  ] * vec_ws[j+1];
+		 */
 		for (k = level_i; k > level_j; --k) {
 			if (k == level_i) {
 				from_vec = vec_i;
@@ -85,14 +85,14 @@ void DefaultVecFromItoJ(void **P_array, int level_i, int level_j, void *vec_i, v
 		/**
 		 * 层号顺序：i < j
 		 * 定义：
-		 * 		vec_ws[i] = vec_i
-		 * 		vec_ws[j] = vec_j
+		 *     vec_ws[i] = vec_i
+		 *     vec_ws[j] = vec_j
 		 * 计算：
-		 * 		vec_ws[i+1] = P[i  ]' * vec_ws[i  ];
-		 * 		vec_ws[i+2] = P[i+1]' * vec_ws[i+1];
-		 * 		...
-		 * 		vec_ws[j-1] = P[j-2]' * vec_ws[j-2];
-		 * 		vec_ws[j  ] = P[j-1]' * vec_ws[j-1];
+		 *     vec_ws[i+1] = P[i  ]' * vec_ws[i  ];
+		 *     vec_ws[i+2] = P[i+1]' * vec_ws[i+1];
+		 *     ...
+		 *     vec_ws[j-1] = P[j-2]' * vec_ws[j-2];
+		 *     vec_ws[j  ] = P[j-1]' * vec_ws[j-1];
 		 */
 		for (k = level_i; k < level_j; ++k) {
 			if (k == level_i) {
@@ -117,30 +117,30 @@ void DefaultVecFromItoJ(void **P_array, int level_i, int level_j, void *vec_i, v
 /**
  * @brief 【从粗层到细层的插值】和【从细层到粗层的限制】的默认函数（多向量版本）
  * 
- * @param P_array 		转移矩阵数组，P_array[i]表示从第 i+1 层到第 i 层的转移矩阵
- * @param level_i 		【源层】的层号
- * @param level_j 		【目标层】的层号
- * @param multi_vec_i 	【源层】的多向量
- * @param multi_vec_j 	【目标层】的多向量
+ * @param P_array      [in]  转移矩阵数组，P_array[i]表示从第 i+1 层到第 i 层的转移矩阵
+ * @param level_i      [in]  【源层】的层号
+ * @param level_j      [in]  【目标层】的层号
+ * @param multi_vec_i  [in]  【源层】的多向量
+ * @param multi_vec_j  [out] 【目标层】的多向量
  * 
- * @param startIJ 		多向量的起始索引
- * @param endIJ 		多向量的终止索引
+ * @param startIJ      [in]  多向量的起始索引
+ * @param endIJ        [in]  多向量的终止索引
  * 
- * @param multi_vec_ws 	多向量的工作空间，用于存储中间结果
- * @param ops 			集合了线性代数操作
+ * @param multi_vec_ws [out] 多向量的工作空间，用于存储中间结果
+ * @param ops          [in]  集合了线性代数操作
  * 
  * @note 层数编号从 0 开始，最细网格层号为 0，最粗网格层号为 L-1
  */
 void DefaultMultiVecFromItoJ(void **P_array, int level_i, int level_j, void **multi_vec_i, void **multi_vec_j, int *startIJ, int *endIJ, void ***multi_vec_ws, struct OPS_ *ops)
 {
 	/**
-	 * @param from_vecs 	【源层】的多向量
-	 * @param to_vecs 		【目标层】的多向量
+	 * @param from_vecs 【源层】的多向量
+	 * @param to_vecs   【目标层】的多向量
 	 * 
-	 * @param k 			循环变量
+	 * @param k         循环变量
 	 * 
-	 * @param start 		多向量的起始索引
-	 * @param end 			多向量的终止索引
+	 * @param start     多向量的起始索引
+	 * @param end       多向量的终止索引
 	 */
 	void **from_vecs, **to_vecs;
 	int k = 0, start[2], end[2];
@@ -152,14 +152,14 @@ void DefaultMultiVecFromItoJ(void **P_array, int level_i, int level_j, void **mu
 		/**
 		 * 层号顺序：j < i
 		 * 定义：
-		 * 		multi_vec_ws[i] = multi_vec_i
-		 * 		multi_vec_ws[j] = multi_vec_j
+		 *     multi_vec_ws[i] = multi_vec_i
+		 *     multi_vec_ws[j] = multi_vec_j
 		 * 计算：
-		 *  	multi_vec_ws[i-1] = P[i-1] * multi_vec_ws[i  ];
-		 * 		multi_vec_ws[i-2] = P[i-2] * multi_vec_ws[i-1];
-		 * 		...
-		 * 		multi_vec_ws[j+1] = P[j+1] * multi_vec_ws[j+2];
-		 * 		multi_vec_ws[j  ] = P[j  ] * multi_vec_ws[j+1];
+		 *     multi_vec_ws[i-1] = P[i-1] * multi_vec_ws[i  ];
+		 *     multi_vec_ws[i-2] = P[i-2] * multi_vec_ws[i-1];
+		 *     ...
+		 *     multi_vec_ws[j+1] = P[j+1] * multi_vec_ws[j+2];
+		 *     multi_vec_ws[j  ] = P[j  ] * multi_vec_ws[j+1];
 		 */
 		for (k = level_i; k > level_j; --k) {
 			if (k == level_i) {
@@ -188,14 +188,14 @@ void DefaultMultiVecFromItoJ(void **P_array, int level_i, int level_j, void **mu
 		/**
 		 * 层号顺序：i < j
 		 * 定义：
-		 * 		multi_vec_ws[i] = multi_vec_i
-		 * 		multi_vec_ws[j] = multi_vec_j
+		 *     multi_vec_ws[i] = multi_vec_i
+		 *     multi_vec_ws[j] = multi_vec_j
 		 * 计算：
-		 * 		multi_vec_ws[i+1] = P[i  ]' * multi_vec_ws[i  ];
-		 * 		multi_vec_ws[i+2] = P[i+1]' * multi_vec_ws[i+1];
-		 * 		...
-		 * 		multi_vec_ws[j-1] = P[j-2]' * multi_vec_ws[j-2];
-		 * 		multi_vec_ws[j  ] = P[j-1]' * multi_vec_ws[j-1];
+		 *     multi_vec_ws[i+1] = P[i  ]' * multi_vec_ws[i  ];
+		 *     multi_vec_ws[i+2] = P[i+1]' * multi_vec_ws[i+1];
+		 *     ...
+		 *     multi_vec_ws[j-1] = P[j-2]' * multi_vec_ws[j-2];
+		 *     multi_vec_ws[j  ] = P[j-1]' * multi_vec_ws[j-1];
 		 */
 		for (k = level_i; k < level_j; ++k) {
 			if (k == level_i) {
