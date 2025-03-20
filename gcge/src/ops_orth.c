@@ -3,11 +3,11 @@
  * 
  * Chinese Encoding Format: UTF-8
  * 
- * Updated on 2025-03-07 by 吴卓轩
+ * Updated on 2025-03-14 by 吴卓轩
  * 
  * @brief 本代码实现了一个用于矩阵正交化的库，主要包含了两种正交化方法：
- * 			1. 分块的改进GS正交化：Modified Gram-Schmidt (MGS)
- * 			2. EVD-二分递归正交化：Binary Gram-Schmidt (BGS)
+ * 			1. 分块的MGS正交化：Modified Gram-Schmidt (MGS)
+ * 			2. 二分递归正交化：Binary Gram-Schmidt (BGS)（基元正交化方法可选MGS或EVD）
 */
 
 /**
@@ -795,6 +795,9 @@ static void BinaryGramSchmidt(void **x, int start_x, int *end_x, void *B, struct
 		}
 		orth_self_method = 'E'; // 'E' 表示 EigenValue Decomposition 方法
 	}
+	/**
+	 * @todo 为什么用16作为阈值？
+	 */
 
 	// 调用 OrthBinary 函数进行递归正交化
 	OrthBinary(x,start_x,end_x,B,orth_self_method,block_size,bgs_orth->max_reorth,orth_zero_tol,reorth_tol,mv_ws,bgs_orth->dbl_ws,ops);
