@@ -54,12 +54,24 @@ endif()
 
 # 问题1：没有指定openblas发布件和头文件的位置，因此需要保证openblas的so和头文件均在系统路径中，这样才找得到。
 # 问题2：没有指定umfpack发布件的位置，因此需要保证umfpack的so在系统路径中，这样才找得到。
-target_link_libraries(GCGE
-    PUBLIC
-        ${MPI_C_LIBRARIES}  # Link MPI libraries
-        OpenMP::OpenMP_C
-        petsc
+target_link_libraries(GCGE PUBLIC
+    ${MPI_C_LIBRARIES}  # Link MPI libraries
+    OpenMP::OpenMP_C
+    # petsc
+    # regex               # 正则表达式库
+    # gfortran            # GNU Fortran 运行时库
+    # stdc++              # C++ 标准库
+    # quadmath            # 高精度数学库（Fortran 相关）
 )
+
+# if(WIN32)
+#     target_link_libraries(GCGE PRIVATE
+#         gdi32               # Windows GDI（图形设备接口）
+#         user32              # Windows 用户界面库
+#         advapi32            # Windows 高级 API
+#         kernel32            # Windows 核心 API
+#     )
+# endif()
 
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/shared/lib)
 set(INCLUDE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/shared/include)

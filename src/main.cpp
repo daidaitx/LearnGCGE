@@ -12,12 +12,12 @@
 #include "io/read_user_param.h"
 #include "io/input_read_tool.h"
 #include "error_code.h"
-#ifndef PETSC_FUNCTION_NAME_CXX
-#define PETSC_FUNCTION_NAME_CXX __func__
-#endif
-#define PETSC_CXX_RESTRICT __restrict
 
 #include <petscmat.h>
+
+#if OPS_USE_SLEPC
+#include <slepcbv.h>
+#endif
 
 extern "C" {
 #include "app_ccs.h"
@@ -33,26 +33,49 @@ extern "C" {
 int main(int argc, char *argv[])
 {
     if (argc < 4) { // 检查参数数量
-        std::cerr << "Usage: mpiexec -n <b> program <ccs_matA> <ccs_matB> <paramFile>" << std::endl;
+        std::cerr << "Usage: mpiexec -n <b> program <sourceMatA.mtx> <sourceMatB.mtx> <paramFile.txt>" << std::endl;
         return GCGE_ERR_INPUT;
     }
-
-#if OPS_USE_MPI
+    
+#if OPS_USE_SLEPC
+    SlepcInitialize(&argc, &argv, NULL, NULL);
+#elif OPS_USE_PETSC
+    PetscFunctionBeginUser;
+    PetscCall(PetscInitialize(&argc, &argv, NULL, NULL));
+#elif OPS_USE_MPI
     MPI_Init(&argc, &argv);
 #endif
+
     // 1、读取文件
-    CCSMAT ccs_matA;
+    // 1.1、读取矩阵文件
     char *fileA = argv[1];
-    auto err = InputReadTool::ReadCcsFromMtx(&ccs_matA, fileA);
+#if OPS_USE_PETSC
+    Mat tmpA;
+    auto err = InputReadTool::ReadPetscMatFromMtx(&tmpA, fileA);
+    CCSMAT sourceMatA;
+    InputReadTool::ConvertPetscMatToCCSMat(tmpA, sourceMatA);
+#else
+    CCSMAT sourceMatA;
+    auto err = InputReadTool::ReadCcsFromMtx(&sourceMatA, fileA);
+#endif
     if (err != GCGE_SUCCESS) {
         return err;
     }
-    CCSMAT ccs_matB;
+
     char *fileB = argv[2];
-    err = InputReadTool::ReadCcsFromMtx(&ccs_matB, fileB);
+#if OPS_USE_PETSC
+    Mat tmpB;
+    err = InputReadTool::ReadPetscMatFromMtx(&tmpB, fileB);
+    CCSMAT sourceMatB;
+    InputReadTool::ConvertPetscMatToCCSMat(tmpB, sourceMatB);
+#else
+    CCSMAT sourceMatB;
+    err = InputReadTool::ReadCcsFromMtx(&sourceMatB, fileB);
+#endif
     if (err != GCGE_SUCCESS) {
         return err;
     }
+
     // 1.2、读取用户参数文件
     GcgeParam gcgeparam{20};
     ExtractMethod extractMethod;    // 结构体对象，保存用户设置的特征值抽取方式
@@ -72,8 +95,8 @@ int main(int argc, char *argv[])
     void *matA, *matB;
     OPS* ops;
     ops = ccs_ops;
-    matA = static_cast<void*>(&ccs_matA);
-    matB = static_cast<void*>(&ccs_matB);
+    matA = static_cast<void*>(&sourceMatA);
+    matB = static_cast<void*>(&sourceMatB);
 
     gcgeparam.shift = 0;
     if (gcgeparam.nevConv <= 50) {
@@ -116,9 +139,17 @@ int main(int argc, char *argv[])
 
     // 7、销毁工作空间
     OPS_Destroy(&ccs_ops);
-    destroyMatrixCCS(&ccs_matA, &ccs_matB);
+#if OPS_USE_PETSC
+    MatDestroy(&tmpA);
+    MatDestroy(&tmpB);
+#endif
+    destroyMatrixCCS(&sourceMatA, &sourceMatB);
 
-#if OPS_USE_MPI
+#if OPS_USE_SLEPC
+    SlepcFinalize();
+#elif OPS_USE_PETSC
+    PetscCall(PetscFinalize());
+#elif OPS_USE_MPI
     MPI_Finalize();
 #endif
     return 0;

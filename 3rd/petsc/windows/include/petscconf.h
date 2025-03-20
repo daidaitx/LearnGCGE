@@ -1,27 +1,37 @@
 #if !defined(INCLUDED_PETSCCONF_H)
 #define INCLUDED_PETSCCONF_H
 
-#define PETSC_ARCH "dmo"
+#define PETSC_ARCH ""
 #define PETSC_ATTRIBUTEALIGNED(size) __attribute((aligned(size)))
 #define PETSC_BLASLAPACK_UNDERSCORE 1
 #define PETSC_CLANGUAGE_C 1
+#define PETSC_CXX_RESTRICT __restrict
 #define PETSC_DEPRECATED_ENUM_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
 #define PETSC_DEPRECATED_FUNCTION_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
 #define PETSC_DEPRECATED_MACRO_BASE(string_literal_why) PETSC_DEPRECATED_MACRO_BASE_(GCC warning string_literal_why)
 #define PETSC_DEPRECATED_MACRO_BASE_(why) _Pragma(#why)
 #define PETSC_DEPRECATED_OBJECT_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
 #define PETSC_DEPRECATED_TYPEDEF_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
-#define PETSC_DIR "/c/M/B/src/build-MINGW64/petsc-3.21.1"
+#define PETSC_DIR "/f/zzy/petsc"
 #define PETSC_DIR_SEPARATOR '/'
 #define PETSC_FORTRAN_CHARLEN_T size_t
 #define PETSC_FORTRAN_TYPE_INITIALIZE  = -2
 #define PETSC_FUNCTION_NAME_C __func__
+#define PETSC_FUNCTION_NAME_CXX __func__
 #define PETSC_HAVE_ACCESS 1
 #define PETSC_HAVE_ATOLL 1
 #define PETSC_HAVE_ATTRIBUTEALIGNED 1
 #define PETSC_HAVE_BUILTIN_EXPECT 1
 #define PETSC_HAVE_C99_COMPLEX 1
 #define PETSC_HAVE_CLOCK 1
+#define PETSC_HAVE_CXX 1
+#define PETSC_HAVE_CXX_ATOMIC 1
+#define PETSC_HAVE_CXX_COMPLEX 1
+#define PETSC_HAVE_CXX_COMPLEX_FIX 1
+#define PETSC_HAVE_CXX_DIALECT_CXX11 1
+#define PETSC_HAVE_CXX_DIALECT_CXX14 1
+#define PETSC_HAVE_CXX_DIALECT_CXX17 1
+#define PETSC_HAVE_CXX_DIALECT_CXX20 1
 #define PETSC_HAVE_DIRECT_H 1
 #define PETSC_HAVE_DOS_H 1
 #define PETSC_HAVE_DOUBLE_ALIGN_MALLOC 1
@@ -40,7 +50,6 @@
 #define PETSC_HAVE_GETLASTERROR 1
 #define PETSC_HAVE_GETPROCADDRESS 1
 #define PETSC_HAVE_GET_USER_NAME 1
-#define PETSC_HAVE_HWLOC 1
 #define PETSC_HAVE_IEEEFP_H 1
 #define PETSC_HAVE_IMMINTRIN_H 1
 #define PETSC_HAVE_INTTYPES_H 1
@@ -55,17 +64,14 @@
 #define PETSC_HAVE_LSEEK 1
 #define PETSC_HAVE_MALLOC_H 1
 #define PETSC_HAVE_MEMMOVE 1
-#define PETSC_HAVE_METIS 1
 #define PETSC_HAVE_MKSTEMP 1
 #define PETSC_HAVE_MPI_COMBINER_CONTIGUOUS 1
 #define PETSC_HAVE_MPI_COMBINER_DUP 1
 #define PETSC_HAVE_MPI_COMBINER_NAMED 1
-#define PETSC_HAVE_MPI_COMM_SPAWN 1
-#define PETSC_HAVE_MPI_EXSCAN 1
+#define PETSC_HAVE_MPI_COUNT 1
 #define PETSC_HAVE_MPI_F90MODULE 1
 #define PETSC_HAVE_MPI_F90MODULE_VISIBILITY 1
 #define PETSC_HAVE_MPI_FEATURE_DYNAMIC_WINDOW 1
-#define PETSC_HAVE_MPI_FINALIZED 1
 #define PETSC_HAVE_MPI_GET_ACCUMULATE 1
 #define PETSC_HAVE_MPI_GET_LIBRARY_VERSION 1
 #define PETSC_HAVE_MPI_INIT_THREAD 1
@@ -76,21 +82,21 @@
 #define PETSC_HAVE_MPI_REDUCE_LOCAL 1
 #define PETSC_HAVE_MPI_REDUCE_SCATTER_BLOCK 1
 #define PETSC_HAVE_MPI_RGET 1
-#define PETSC_HAVE_MPI_TYPE_DUP 1
-#define PETSC_HAVE_MPI_TYPE_GET_ENVELOPE 1
-#define PETSC_HAVE_MPI_TYPE_GET_EXTENT 1
 #define PETSC_HAVE_MPI_WIN_CREATE 1
 #define PETSC_HAVE_MSMPI 1
 #define PETSC_HAVE_MSMPI_VERSION 0x100
 #define PETSC_HAVE_NANOSLEEP 1
-#define PETSC_HAVE_OPENBLAS 1
+#define PETSC_HAVE_NO_FINITE_MATH_ONLY 1
 #define PETSC_HAVE_OPENBLAS_SET_NUM_THREADS 1
+#define PETSC_HAVE_OPENMP 1
 #define PETSC_HAVE_O_BINARY 1
-#define PETSC_HAVE_PACKAGES ":blaslapack:hwloc:mathlib:metis:mpi:openblas:parmetis:"
-#define PETSC_HAVE_PARMETIS 1
+#define PETSC_HAVE_PACKAGES ":blaslapack:mathlib:mpi:openmp:openmp:pthread:regex:"
 #define PETSC_HAVE_POPEN 1
+#define PETSC_HAVE_PTHREAD 1
+#define PETSC_HAVE_PTHREAD_MUTEX 1
 #define PETSC_HAVE_RAND 1
 #define PETSC_HAVE_REAL___FLOAT128 1
+#define PETSC_HAVE_REGEX 1
 #define PETSC_HAVE_SETJMP_H 1
 #define PETSC_HAVE_SETLASTERROR 1
 #define PETSC_HAVE_SLEEP 1
@@ -130,7 +136,7 @@
 #define PETSC_IS_COLORING_VALUE_TYPE short
 #define PETSC_IS_COLORING_VALUE_TYPE_F integer2
 #define PETSC_LEVEL1_DCACHE_LINESIZE 32
-#define PETSC_LIB_DIR "/c/M/B/src/build-MINGW64/petsc-3.21.1/dmo/lib"
+#define PETSC_LIB_DIR "/f/zzy/petsc/lib"
 #define PETSC_MAX_PATH_LEN 260
 #define PETSC_MEMALIGN 16
 #define PETSC_MISSING_GETLINE 1
@@ -149,7 +155,7 @@
 #define PETSC_MISSING_SIGURG 1
 #define PETSC_MISSING_SIGUSR1 1
 #define PETSC_MISSING_SIGUSR2 1
-#define PETSC_MPICC_SHOW "Unavailable"
+#define PETSC_MPICC_SHOW "cc.exe -IC:/msys2/mingw64/include -LC:/msys2/mingw64/lib -l:libmsmpi.dll.a"
 #define PETSC_MPIU_IS_COLORING_VALUE_TYPE MPI_UNSIGNED_SHORT
 #define PETSC_NEEDS_UTYPE_TYPEDEFS 1
 #define PETSC_OMAKE "/usr/bin/make --no-print-directory"
@@ -160,6 +166,7 @@
 #define PETSC_PYTHON_EXE "/usr/bin/python.exe"
 #define PETSC_Prefetch(a,b,c) _mm_prefetch((const char*)(a),(c))
 #define PETSC_REPLACE_DIR_SEPARATOR '\\'
+#define PETSC_SIGNAL_CAST  
 #define PETSC_SIZEOF_INT 4
 #define PETSC_SIZEOF_LONG 4
 #define PETSC_SIZEOF_LONG_LONG 8
@@ -172,6 +179,7 @@
 #define PETSC_USE_AVX512_KERNELS 1
 #define PETSC_USE_BACKWARD_LOOP 1
 #define PETSC_USE_CTABLE 1
+#define PETSC_USE_DEBUGGER "gdb"
 #define PETSC_USE_DMLANDAU_2D 1
 #define PETSC_USE_FORTRAN_BINDINGS 1
 #define PETSC_USE_INFO 1
@@ -182,6 +190,7 @@
 #define PETSC_USE_PROC_FOR_SIZE 1
 #define PETSC_USE_REAL_DOUBLE 1
 #define PETSC_USE_SINGLE_LIBRARY 1
+#define PETSC_USE_WINDOWS_GRAPHICS 1
 #define PETSC_USING_64BIT_PTR 1
 #define PETSC_USING_F2003 1
 #define PETSC_USING_F90FREEFORM 1
