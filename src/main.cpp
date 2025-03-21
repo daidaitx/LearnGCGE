@@ -21,6 +21,7 @@
 
 extern "C" {
 #include "app_ccs.h"
+#include "app_slepc.h"
 #include "app_lapack.h"
 #include "ops.h"
 #include "ops_config.h"
@@ -49,7 +50,10 @@ int main(int argc, char *argv[])
     // 1、读取文件
     // 1.1、读取矩阵文件
     char *fileA = argv[1];
-#if OPS_USE_PETSC
+#if OPS_USE_SLEPC
+    Mat sourceMatA;
+    auto err = InputReadTool::ReadPetscMatFromMtx(&sourceMatA, fileA);
+#elif OPS_USE_PETSC
     Mat tmpA;
     auto err = InputReadTool::ReadPetscMatFromMtx(&tmpA, fileA);
     CCSMAT sourceMatA;
@@ -63,7 +67,10 @@ int main(int argc, char *argv[])
     }
 
     char *fileB = argv[2];
-#if OPS_USE_PETSC
+#if OPS_USE_SLEPC
+    Mat sourceMatB;
+    err = InputReadTool::ReadPetscMatFromMtx(&sourceMatB, fileA);
+#elif OPS_USE_PETSC
     Mat tmpB;
     err = InputReadTool::ReadPetscMatFromMtx(&tmpB, fileB);
     CCSMAT sourceMatB;
@@ -89,14 +96,23 @@ int main(int argc, char *argv[])
     OPS* ccs_ops = NULL;
     OPS_Create(&ccs_ops);
     OPS_CCS_Set(ccs_ops);
+#if OPS_USE_SLEPC
+    OPS_SLEPC_Set(ccs_ops);
+#else
     OPS_Setup(ccs_ops);
+#endif
 
     // 3、设置输入参数
     void *matA, *matB;
     OPS* ops;
     ops = ccs_ops;
+#if OPS_USE_SLEPC
+    matA = static_cast<void*>(sourceMatA);
+    matB = static_cast<void*>(sourceMatB);
+#else
     matA = static_cast<void*>(&sourceMatA);
     matB = static_cast<void*>(&sourceMatB);
+#endif
 
     gcgeparam.shift = 0;
     if (gcgeparam.nevConv <= 50) {
@@ -139,11 +155,16 @@ int main(int argc, char *argv[])
 
     // 7、销毁工作空间
     OPS_Destroy(&ccs_ops);
-#if OPS_USE_PETSC
+#if OPS_USE_SLEPC
+    MatDestroy(&sourceMatA);
+    MatDestroy(&sourceMatB);
+#elif OPS_USE_PETSC
     MatDestroy(&tmpA);
     MatDestroy(&tmpB);
-#endif
     destroyMatrixCCS(&sourceMatA, &sourceMatB);
+#else
+    destroyMatrixCCS(&sourceMatA, &sourceMatB);
+#endif
 
 #if OPS_USE_SLEPC
     SlepcFinalize();

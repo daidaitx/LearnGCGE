@@ -1,7 +1,7 @@
 #if !defined(INCLUDED_PETSCCONF_H)
 #define INCLUDED_PETSCCONF_H
 
-#define PETSC_ARCH "petsc_arch"
+#define PETSC_ARCH ""
 #define PETSC_ATTRIBUTEALIGNED(size) __attribute((aligned(size)))
 #define PETSC_BLASLAPACK_UNDERSCORE 1
 #define PETSC_CLANGUAGE_C 1
@@ -12,7 +12,7 @@
 #define PETSC_DEPRECATED_MACRO_BASE_(why) _Pragma(#why)
 #define PETSC_DEPRECATED_OBJECT_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
 #define PETSC_DEPRECATED_TYPEDEF_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
-#define PETSC_DIR "/home/ma/myCode/petsc-3.22.3"
+#define PETSC_DIR "/home/zzy/deps/petsc-3.22.3"
 #define PETSC_DIR_SEPARATOR '/'
 #define PETSC_FORTRAN_CHARLEN_T size_t
 #define PETSC_FORTRAN_TYPE_INITIALIZE  = -2
@@ -114,6 +114,7 @@
 #define PETSC_HAVE_REALPATH 1
 #define PETSC_HAVE_REAL___FLOAT128 1
 #define PETSC_HAVE_REGEX 1
+#define PETSC_HAVE_RTLD_DEFAULT 1
 #define PETSC_HAVE_RTLD_GLOBAL 1
 #define PETSC_HAVE_RTLD_LAZY 1
 #define PETSC_HAVE_RTLD_LOCAL 1
@@ -154,7 +155,7 @@
 #define PETSC_IS_COLORING_VALUE_TYPE short
 #define PETSC_IS_COLORING_VALUE_TYPE_F integer2
 #define PETSC_LEVEL1_DCACHE_LINESIZE 64
-#define PETSC_LIB_DIR "/home/ma/myCode/petsc-3.22.3/petsc_arch/lib"
+#define PETSC_LIB_DIR "/home/zzy/deps/petsc-3.22.3/lib"
 #define PETSC_MAX_PATH_LEN 4096
 #define PETSC_MEMALIGN 16
 #define PETSC_MPICC_SHOW "gcc -I/usr/local/include -L/usr/local/lib -Wl,-rpath -Wl,/usr/local/lib -Wl,--enable-new-dtags -lmpi"

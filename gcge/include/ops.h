@@ -69,7 +69,8 @@ typedef struct OPS_ {
 	 * @note 该函数用于从命令行参数中获取指定选项，支持多种数据类型
 	 */
 	int (*GetOptionFromCommandLine)(const char *name, char type, void *data, int argc, char *argv[], struct OPS_ *ops);
-	/**
+	/* mat */
+  /**
 	* @brief 打印擦除类型的矩阵内容到输出流
 	*
 	* @param[in] mat  指向擦除类型矩阵结构的指针
@@ -78,7 +79,6 @@ typedef struct OPS_ {
 	void (*MatView)(void *mat, struct OPS_ *ops);
 	/**
 	* @brief 执行矩阵的线性组合操作：alpha * X + beta * Y
-
 	* @param[in] alpha 第一个矩阵的标量系数
 	* @param[in] matX  指向第一个矩阵数据的指针，矩阵的具体格式由实现定义
 	* @param[in] beta  第二个矩阵的标量系数

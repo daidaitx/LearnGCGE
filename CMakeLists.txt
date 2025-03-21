@@ -12,13 +12,22 @@ if(NOT CMAKE_BUILD_TYPE)
     "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# 添加 CMake 目录
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_CURRENT_SOURCE_DIR}/config)
+if(UNIX)
+    set(3RD_LIB_PATH ${PROJECT_SOURCE_DIR}/3rd/ubuntu)
+elseif(WIN32)
+    set(3RD_LIB_PATH ${PROJECT_SOURCE_DIR}/3rd/windows)
+else()
+    message(FATAL_ERROR "unspported platform!!!")
+endif()
+# 添加 CMake查找库 目录
+list(APPEND CMAKE_PREFIX_PATH ${3RD_LIB_PATH} ${3RD_LIB_PATH}/lib/cmake)
+# 添加 CMake模块文件 目录
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
+# 载入 MPI 编译器配置
 include(linux_mpicc)
 # 载入 PETSc 配置
 include(PETScConfig)
-
 # 载入 SLEPc 配置
 include(SLEPcConfig)
 
