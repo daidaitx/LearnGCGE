@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     char *fileB = argv[2];
 #if OPS_USE_SLEPC
     Mat sourceMatB;
-    err = InputReadTool::ReadPetscMatFromMtx(&sourceMatB, fileA);
+    err = InputReadTool::ReadPetscMatFromMtx(&sourceMatB, fileB);
 #elif OPS_USE_PETSC
     Mat tmpB;
     err = InputReadTool::ReadPetscMatFromMtx(&tmpB, fileB);
@@ -95,12 +95,12 @@ int main(int argc, char *argv[])
     // 2、设置工作空间
     OPS* ccs_ops = NULL;
     OPS_Create(&ccs_ops);
-    OPS_CCS_Set(ccs_ops);
 #if OPS_USE_SLEPC
     OPS_SLEPC_Set(ccs_ops);
 #else
-    OPS_Setup(ccs_ops);
+    OPS_CCS_Set(ccs_ops);
 #endif
+    OPS_Setup(ccs_ops);
 
     // 3、设置输入参数
     void *matA, *matB;
@@ -173,5 +173,6 @@ int main(int argc, char *argv[])
 #elif OPS_USE_MPI
     MPI_Finalize();
 #endif
+    std::cout << "GCGE solver finished!" << std::endl;
     return 0;
 }
