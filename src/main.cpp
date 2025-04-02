@@ -12,6 +12,7 @@
 #include "io/read_user_param.h"
 #include "io/input_read_tool.h"
 #include "error_code.h"
+#include "solver/count_eigen_num.h"
 
 #include <petscmat.h>
 
@@ -84,13 +85,21 @@ int main(int argc, char *argv[])
     }
 
     // 1.2、读取用户参数文件
-    GcgeParam gcgeparam{20};
-    ExtractMethod extractMethod;    // 结构体对象，保存用户设置的特征值抽取方式
+    GcgeParam gcgeparam{20}; // 默认提取20个，之后优化代码逻辑
     std::string usrParaFile = argv[3];
-    err = InputReadTool::readUserParam(gcgeparam, extractMethod, usrParaFile);
+    err = InputReadTool::readUserParam(gcgeparam, usrParaFile);
     if (err != GCGE_SUCCESS) {
         return err;
     }
+
+    // 按区间范围求解特征值时: extractOrder = CountEigsInRange(A, B, a, b)
+    if (gcgeparam.extMethod.extractType == BY_FREQUENCY) {
+        CountEigenNum::countEigenNum(static_cast<void*>(sourceMatA), static_cast<void*>(sourceMatB), std::pow(gcgeparam.extMethod.minFreq * 2 * M_PI, 2),
+        std::pow(gcgeparam.extMethod.maxFreq * 2 * M_PI, 2), gcgeparam.extMethod.extractOrder);    
+    }
+
+    // 刚度矩阵和质量矩阵预处理DKD，DMD(此功能暂时设置在CountEigenNum类中,支持并行时再调整)
+    // CountEigenNum::processMatDAD(sourceMatA, sourceMatB);
 
     // 2、设置工作空间
     OPS* ccs_ops = NULL;
@@ -115,6 +124,7 @@ int main(int argc, char *argv[])
 #endif
 
     gcgeparam.shift = 0;
+    gcgeparam.nevConv = gcgeparam.extMethod.extractOrder;
     if (gcgeparam.nevConv <= 50) {
         gcgeparam.block_size = gcgeparam.nevConv;
         gcgeparam.nevInit = 2 * gcgeparam.nevConv;
