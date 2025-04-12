@@ -12,7 +12,7 @@
 #include <omp.h>
 #include <vector>
 #include <cmath>
-
+#include <algorithm>
 extern "C" {
 #include "app_ccs.h"
 #include "app_lapack.h"
@@ -123,6 +123,7 @@ int eigenSolverGCG(void* A, void* B, std::vector<double>& eigenvalue, std::vecto
     gcgsolver->extract_type = (GCGSolver_::EigenValueExtractType)gcgeparam->extMethod.extractType;
     gcgsolver->min_eigenvalue = std::pow(gcgeparam->extMethod.minFreq * 2 * M_PI, 2);
     gcgsolver->max_eigenvalue = std::pow(gcgeparam->extMethod.maxFreq * 2 * M_PI, 2);
+    gcgsolver->compW_cg_shift = gcgsolver->min_eigenvalue;
 
     /* 命令行获取 GCG 的算法参数 勿用 有 BUG, 
 	 * 不应该改变 nevMax nevInit block_size, 这些与工作空间有关 */
@@ -150,10 +151,15 @@ int eigenSolverGCG(void* A, void* B, std::vector<double>& eigenvalue, std::vecto
 
     // 开始导出数据
     eigenvalue.resize(nevConv);
+    std::sort(eigenvalue.begin(), eigenvalue.end());
     eigenvector.resize(nevConv);
     ops->Printf("eigenvectors\n");
+    int countInRange = 0;
     for (auto i = 0; i < nevConv; ++i) {
-        ops->Printf("index: %d eigenvalue: %e\n", i + 1, eval[i]);
+        if (eval[i] >= gcgsolver->min_eigenvalue && eval[i] <= gcgsolver->max_eigenvalue) {
+            countInRange++;
+            ops->Printf("index: %d eigenvalue: %e\n", countInRange, eval[i]);
+        }
     }
     //ops->MultiVecView(evec,0,nevConv,ops);
 

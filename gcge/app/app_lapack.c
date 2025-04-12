@@ -1456,6 +1456,5 @@ void OPS_LAPACK_Set(struct OPS_ *ops) {
     ops->MultiGridCreate = LAPACK_MultiGridCreate;
     ops->MultiGridDestroy = LAPACK_MultiGridDestroy;
 
-    printf("lapack_set\n");
     return;
 }

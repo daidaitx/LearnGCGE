@@ -221,9 +221,9 @@ void BlockPCG(void *mat, void **mv_b, void **mv_x,
     end[1] = num_unconv;
     // 计算 A*x
     if (bpcg->MatDotMultiVec != NULL) {                             // 如果求解器带了自定义的MatDotMultiVec函数
-        bpcg->MatDotMultiVec(mv_x, mv_r, start, end, mv_p, 0, ops); // TODO bpcg->MatDotMultiVec怎么定义的?可能和预条件有关
+        bpcg->MatDotMultiVec(mv_x, mv_r, start, end, mv_p, 0, ops); // bpcg->MatDotMultiVec是: MatDotMultiVecShift
     } else {                                                        // 否则调用默认的MatDotMultiVec函数，y = Ax, 结果存储在mv_r中
-        ops->MatDotMultiVec(mat, mv_x, mv_r, start, end, ops);
+        ops->MatDotMultiVec(mat, mv_x, mv_r, start, end, ops); // sigma不为0
     }
 
 #if TIME_BPCG
